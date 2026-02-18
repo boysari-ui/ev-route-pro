@@ -6,4 +6,5 @@ const withPWA = require("next-pwa")({
 
 module.exports = withPWA({
   reactStrictMode: true,
+  turbopack: {}, // 🟢 Turbopack empty config 추가
 });
