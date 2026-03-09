@@ -308,47 +308,58 @@ export default function Map() {
         return s;
       });
 
-      // 배터리 시뮬레이션 (10km 단위)
+      // ── 배터리 시뮬레이션 ──────────────────────────────────────────
       const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
       const CHARGE_THRESHOLD = 20;
       const CHARGE_TARGET = 80;
-      const STEP_KM = 10;
 
-      // 경로 step별 위치 수집
-      const routeSteps: { distFromStart: number; lat: number; lng: number; address: string }[] = [];
-      let cumDist = 0;
+      // 각 leg의 누적거리 + start_address 수집 (Geocoding 불필요)
+      const legPoints: { km: number; address: string }[] = [];
+      let cumKm = 0;
       for (const leg of routeLegs) {
-        for (const step of (leg as any).steps) {
-          routeSteps.push({
-            distFromStart: cumDist,
-            lat: step.start_location.lat(),
-            lng: step.start_location.lng(),
-            address: leg.start_address,
-          });
-          cumDist += (step.distance?.value || 0) / 1000;
-        }
+        legPoints.push({ km: cumKm, address: leg.start_address });
+        cumKm += (leg.distance?.value || 0) / 1000;
+      }
+      // 목적지도 추가
+      legPoints.push({ km: cumKm, address: routeLegs[routeLegs.length - 1].end_address });
+      const totalKm = cumKm;
+
+      // 충전 지점 계산
+      let currentBattery = startBattery;
+      let travelledKm = 0;
+
+      while (true) {
+        const kmToThreshold = (currentBattery - CHARGE_THRESHOLD) * KM_PER_PERCENT;
+        const chargeAtKm = travelledKm + kmToThreshold;
+
+        if (chargeAtKm >= totalKm) break;
+
+        // 충전 지점에 가장 가까운 leg 주소 찾기
+        const closest = legPoints.reduce((prev, curr) =>
+          Math.abs(curr.km - chargeAtKm) < Math.abs(prev.km - chargeAtKm) ? curr : prev
+        );
+
+        // "21 Hume Hwy, Goulburn NSW 2580, Australia" → "Goulburn NSW"
+        // leg.start_address 형태: "Seymour VIC 3660, Australia" 또는 "Hume Hwy, Goulburn NSW 2580, Australia"
+        const parts = closest.address.split(",");
+        // 뒤에서 두번째 = "City STATE postcode" 또는 마지막에서 1번째
+        const raw = parts.length >= 2 ? parts[parts.length - 2].trim() : parts[0].trim();
+        // 숫자(우편번호) 제거 후 trim
+        const cityName = raw.replace(/\s*\d{4,}\s*/g, " ").trim();
+
+        timeline.push({
+          type: "charge",
+          battery: Math.round(currentBattery - kmToThreshold / KM_PER_PERCENT * KM_PER_PERCENT),
+          location: cityName,
+        });
+
+        currentBattery = CHARGE_TARGET;
+        travelledKm = chargeAtKm;
       }
 
-      const totalKm = cumDist;
-      let distanceTravelled = 0;
-      let chargedAtKm = -300;
-
-      while (distanceTravelled < totalKm) {
-        distanceTravelled = Math.min(distanceTravelled + STEP_KM, totalKm);
-        remainingBattery = Math.max(0, remainingBattery - STEP_KM / KM_PER_PERCENT);
-
-        if (remainingBattery <= CHARGE_THRESHOLD && distanceTravelled - chargedAtKm > 80) {
-          const closest = routeSteps.reduce((prev, curr) =>
-            Math.abs(curr.distFromStart - distanceTravelled) < Math.abs(prev.distFromStart - distanceTravelled) ? curr : prev
-          );
-          const addr = await getAddress(closest.lat, closest.lng) || closest.address;
-          const shortAddr = addr.split(",").slice(0, 2).join(",").trim();
-
-          timeline.push({ type: "charge", battery: remainingBattery, location: shortAddr });
-          remainingBattery = CHARGE_TARGET;
-          chargedAtKm = distanceTravelled;
-        }
-      }
+      // 최종 도착 배터리
+      const kmLeft = totalKm - travelledKm;
+      remainingBattery = Math.max(0, currentBattery - kmLeft / KM_PER_PERCENT);
 
       timeline.push({ type: "arrival", battery: remainingBattery, location: destination });
       setChargingTimeline(timeline);
