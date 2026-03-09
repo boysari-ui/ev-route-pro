@@ -308,44 +308,45 @@ export default function Map() {
         return s;
       });
 
-      // 배터리 1%당 주행 가능 km
-      const kmPerPercent = (batteryKWh * 1000) / whPerKm / 100;
-      // 충전 필요 임계값 (15% 남으면 충전)
-      const CHARGE_THRESHOLD = 15;
-      // 충전 후 목표 배터리
+      // 배터리 시뮬레이션 (10km 단위)
+      const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
+      const CHARGE_THRESHOLD = 20;
       const CHARGE_TARGET = 80;
+      const STEP_KM = 10;
 
+      // 경로 step별 위치 수집
+      const routeSteps: { distFromStart: number; lat: number; lng: number; address: string }[] = [];
+      let cumDist = 0;
       for (const leg of routeLegs) {
-        const legDistKm = (leg.distance?.value || 0) / 1000;
-        // 이 구간을 50km 세그먼트로 쪼개서 체크
-        const SEGMENT_KM = 50;
-        let distLeft = legDistKm;
-        let segStart = 0;
+        for (const step of (leg as any).steps) {
+          routeSteps.push({
+            distFromStart: cumDist,
+            lat: step.start_location.lat(),
+            lng: step.start_location.lng(),
+            address: leg.start_address,
+          });
+          cumDist += (step.distance?.value || 0) / 1000;
+        }
+      }
 
-        while (distLeft > 0) {
-          const segKm = Math.min(SEGMENT_KM, distLeft);
-          const battUsed = segKm / kmPerPercent;
+      const totalKm = cumDist;
+      let distanceTravelled = 0;
+      let chargedAtKm = -300;
 
-          if (remainingBattery - battUsed <= CHARGE_THRESHOLD) {
-            // 이 세그먼트 중간에 충전 필요 → 현재 위치 기준으로 충전 기록
-            const progressRatio = segStart / legDistKm;
-            const chargeLabel = progressRatio < 0.3
-              ? leg.start_address
-              : progressRatio > 0.7
-              ? leg.end_address
-              : `Midpoint – ${leg.start_address} → ${leg.end_address}`;
+      while (distanceTravelled < totalKm) {
+        distanceTravelled = Math.min(distanceTravelled + STEP_KM, totalKm);
+        remainingBattery = Math.max(0, remainingBattery - STEP_KM / KM_PER_PERCENT);
 
-            timeline.push({
-              type: "charge",
-              battery: Math.max(0, remainingBattery - battUsed / 2), // 도착 시 배터리
-              location: chargeLabel,
-            });
-            remainingBattery = CHARGE_TARGET;
-          }
+        if (remainingBattery <= CHARGE_THRESHOLD && distanceTravelled - chargedAtKm > 80) {
+          const closest = routeSteps.reduce((prev, curr) =>
+            Math.abs(curr.distFromStart - distanceTravelled) < Math.abs(prev.distFromStart - distanceTravelled) ? curr : prev
+          );
+          const addr = await getAddress(closest.lat, closest.lng) || closest.address;
+          const shortAddr = addr.split(",").slice(0, 2).join(",").trim();
 
-          remainingBattery = Math.max(0, remainingBattery - battUsed);
-          distLeft -= segKm;
-          segStart += segKm;
+          timeline.push({ type: "charge", battery: remainingBattery, location: shortAddr });
+          remainingBattery = CHARGE_TARGET;
+          chargedAtKm = distanceTravelled;
         }
       }
 
