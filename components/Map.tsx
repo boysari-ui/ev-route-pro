@@ -365,7 +365,7 @@ setChargingTimeline(timeline);
 <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center mb-8">
   <h1 className="text-3xl font-bold">⚡ EV Route Pro</h1>
   <p className="mt-2 text-lg">
-    Smart EV Trip Planner for Australia
+    Smart EV trip planner for Australia
   </p>
   <p className="text-sm mt-1 text-green-100">
     Plan your drive. Optimize charging. Arrive stress-free.
