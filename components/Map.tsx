@@ -10,53 +10,22 @@ import {
   InfoWindow,
 } from "@react-google-maps/api";
 
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
-
-
-function decodePolyline(encoded: string) {
-  let points = [];
-  let index = 0, lat = 0, lng = 0;
-
-  while (index < encoded.length) {
-    let b, shift = 0, result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    lat += ((result & 1) ? ~(result >> 1) : (result >> 1));
-
-    shift = 0;
-    result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    lng += ((result & 1) ? ~(result >> 1) : (result >> 1));
-
-    points.push({
-      lat: lat / 1e5,
-      lng: lng / 1e5
-    });
+async function getAddress(lat: number, lng: number) {
+  try {
+    const geocoder = new window.google.maps.Geocoder();
+    const res = await geocoder.geocode({ location: { lat, lng } });
+    if (res.results && res.results.length > 0) return res.results[0].formatted_address;
+    return null;
+  } catch (err) {
+    console.log("Geocoder error", err);
+    return null;
   }
-
-  return points;
 }
-
 
 const containerStyle = { width: "100%", height: "calc(100vh - 180px)" };
 const center = { lat: -37.8136, lng: 144.9631 };
 
-interface EVModel {
-  name: string;
-  batteryKWh: number;
-  whPerKm: number;
-}
-
+interface EVModel { name: string; batteryKWh: number; whPerKm: number; }
 const EV_MODELS: EVModel[] = [
   { name: "Tesla Model 3", batteryKWh: 60, whPerKm: 160 },
   { name: "Tesla Model Y", batteryKWh: 75, whPerKm: 170 },
@@ -68,27 +37,206 @@ const EV_MODELS: EVModel[] = [
   { name: "Nissan Ariya", batteryKWh: 87, whPerKm: 195 },
 ];
 
+interface TimelineItem { type: "start" | "charge" | "arrival"; battery: number; location: string; }
+
 interface ChargePoint {
-  id: number;
-  lat: number;
-  lng: number;
-  title: string;
-  type: string;
-  cost?: string;
-  speed?: string;
-  address?: string;
-  isUsedAsWaypoint?: boolean;
-  batteryAfterReach?: number;
-  estimatedChargeTime?: number; // 분 단위
+  id: number; lat: number; lng: number; title: string; type: string;
+  cost?: string; speed?: string; address?: string;
+  isUsedAsWaypoint?: boolean; batteryAfterReach?: number; estimatedChargeTime?: number;
 }
 
+function computeDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
+function scoreStation(s: ChargePoint, detourKm: number): number {
+  let score = 0;
+  if (s.type === "Supercharger") score += 50;
+  else if (s.speed?.includes("150")) score += 40;
+  else if (s.speed?.toLowerCase().includes("fast")) score += 25;
+  else score += 10;
+  if (s.cost?.toLowerCase().includes("free")) score += 30;
+  else if (s.cost && s.cost !== "N/A") score += 15;
+  else score += 5;
+  if (s.batteryAfterReach !== undefined) {
+    if (s.batteryAfterReach >= 15 && s.batteryAfterReach <= 30) score += 20;
+    else if (s.batteryAfterReach >= 8) score += 5;
+    else score -= 30;
+  }
+  score -= detourKm * 3;
+  return score;
+}
+
+function findBestChargingStation(stations: ChargePoint[]): ChargePoint | null {
+  let bestStation: ChargePoint | null = null;
+  let bestScore = -Infinity;
+  for (const s of stations) {
+    if (s.batteryAfterReach === undefined) continue;
+    let score = 0;
+    if (s.type === "Supercharger") score += 50;
+    if (s.speed?.includes("150")) score += 30;
+    if (s.cost?.toLowerCase().includes("free")) score += 20;
+    if (s.batteryAfterReach > 10) score += 20; else score -= 50;
+    if (score > bestScore) { bestScore = score; bestStation = s; }
+  }
+  return bestStation;
+}
+
+// ─── ✨ ChargingTimeline Component ────────────────────────────────────────────
+function ChargingTimeline({ items }: { items: TimelineItem[] }) {
+  const getBatteryColor = (pct: number) => {
+    if (pct >= 50) return { main: "#22c55e", glow: "rgba(34,197,94,0.35)" };
+    if (pct >= 25) return { main: "#f59e0b", glow: "rgba(245,158,11,0.35)" };
+    return { main: "#ef4444", glow: "rgba(239,68,68,0.35)" };
+  };
+
+  const config = {
+    start:   { icon: "🚗", label: "DEPARTURE",      accent: "#60a5fa", glow: "rgba(96,165,250,0.3)",   bg: "rgba(59,130,246,0.08)",  border: "rgba(96,165,250,0.2)"  },
+    charge:  { icon: "⚡", label: "CHARGING STOP",  accent: "#fbbf24", glow: "rgba(251,191,36,0.3)",  bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.25)" },
+    arrival: { icon: "🏁", label: "ARRIVAL",        accent: "#a78bfa", glow: "rgba(167,139,250,0.3)", bg: "rgba(139,92,246,0.08)",  border: "rgba(167,139,250,0.2)" },
+  };
+
+  return (
+    <div style={{
+      maxWidth: 580,
+      margin: "0 auto 28px",
+      background: "linear-gradient(160deg, #0d1117 0%, #161b27 60%, #0d1117 100%)",
+      borderRadius: 24,
+      padding: "28px 24px 24px",
+      boxShadow: "0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.07)",
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+            borderRadius: 8, padding: "5px 11px",
+            fontSize: 11, fontWeight: 800, color: "white", letterSpacing: "0.08em",
+            boxShadow: "0 4px 12px rgba(16,185,129,0.35)",
+          }}>TRIP PLAN</div>
+          <span style={{ color: "#475569", fontSize: 12 }}>
+            {items.filter(i => i.type === "charge").length} charging stop{items.filter(i => i.type === "charge").length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>
+          {items.length} waypoints
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div style={{ position: "relative" }}>
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          const c = config[item.type];
+          const batt = getBatteryColor(item.battery);
+
+          return (
+            <div key={index} style={{ display: "flex", gap: 14 }}>
+              {/* Spine */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 44, flexShrink: 0 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "50%",
+                  background: `radial-gradient(circle at 35% 35%, ${c.accent}33, #1a2035)`,
+                  border: `2px solid ${c.accent}`,
+                  boxShadow: `0 0 18px ${c.glow}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 20, flexShrink: 0, zIndex: 1,
+                }}>
+                  {c.icon}
+                </div>
+                {!isLast && (
+                  <div style={{
+                    width: 2, flex: 1, minHeight: 32,
+                    background: `linear-gradient(to bottom, ${c.accent}66, #1e2a3a44)`,
+                    margin: "3px 0",
+                    borderRadius: 99,
+                  }} />
+                )}
+              </div>
+
+              {/* Card */}
+              <div style={{
+                flex: 1,
+                background: c.bg,
+                border: `1px solid ${c.border}`,
+                borderRadius: 16,
+                padding: "13px 16px",
+                marginBottom: isLast ? 0 : 10,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  {/* Location info */}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 800, letterSpacing: "0.12em",
+                      color: c.accent, textTransform: "uppercase", marginBottom: 4,
+                    }}>{c.label}</div>
+                    <div style={{
+                      color: "#e2e8f0", fontSize: 15, fontWeight: 600,
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>
+                      {item.location}
+                    </div>
+                  </div>
+
+                  {/* Battery indicator */}
+                  <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 16 }}>
+                    <div style={{
+                      fontSize: 24, fontWeight: 900, lineHeight: 1,
+                      color: batt.main,
+                      textShadow: `0 0 16px ${batt.glow}`,
+                    }}>
+                      {item.battery.toFixed(0)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
+                    </div>
+                    {/* Mini bar */}
+                    <div style={{
+                      width: 56, height: 4, background: "#1e293b",
+                      borderRadius: 99, marginTop: 6, overflow: "hidden",
+                    }}>
+                      <div style={{
+                        height: "100%",
+                        width: `${Math.max(0, Math.min(100, item.battery))}%`,
+                        background: batt.main,
+                        borderRadius: 99,
+                      }} />
+                    </div>
+                    <div style={{ fontSize: 9, color: "#334155", marginTop: 3, fontWeight: 600, letterSpacing: "0.05em" }}>
+                      BATTERY
+                    </div>
+                  </div>
+                </div>
+
+                {/* Charge tip */}
+                {item.type === "charge" && (
+                  <div style={{
+                    marginTop: 10, padding: "5px 10px",
+                    background: "rgba(251,191,36,0.1)", borderRadius: 8,
+                    fontSize: 11, color: "#fbbf24",
+                    display: "flex", alignItems: "center", gap: 6, fontWeight: 500,
+                  }}>
+                    ⚡ Charge to 80% before continuing
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Map() {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
   });
-  const [chargingTimeline, setChargingTimeline] = useState<any[]>([]);
+
+  const [chargingTimeline, setChargingTimeline] = useState<TimelineItem[]>([]);
   const [directions, setDirections] = useState<any>(null);
   const [origin, setOrigin] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
@@ -98,8 +246,7 @@ export default function Map() {
   const [stations, setStations] = useState<ChargePoint[]>([]);
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
-  const [showMap, setShowMap] = useState(false);
-
+  const [showMap, setShowMap] = useState(true);
 
   const fetchStations = async (lat: number, lng: number): Promise<ChargePoint[]> => {
     const distanceKm = 50;
@@ -112,511 +259,246 @@ export default function Map() {
       title: d.AddressInfo.Title || "Unknown",
       type: d.UsageType?.Title?.toLowerCase().includes("tesla") ||
         d.AddressInfo?.Title?.toLowerCase().includes("tesla") ||
-       d.OperatorInfo?.Title?.toLowerCase().includes("tesla") ||
-            d.Title?.toLowerCase().includes("supercharger") 
-            ? "Supercharger" : "Standard",
+        d.OperatorInfo?.Title?.toLowerCase().includes("tesla") ||
+        d.Title?.toLowerCase().includes("supercharger") ? "Supercharger" : "Standard",
       cost: d.UsageCost || "N/A",
       speed: d.Connections?.[0]?.Level?.Title || "N/A",
       address: d.AddressInfo.AddressLine1 || "",
-      isUsedAsWaypoint: false,
-      batteryAfterReach: undefined,
-      estimatedChargeTime: undefined,
+      isUsedAsWaypoint: false, batteryAfterReach: undefined, estimatedChargeTime: undefined,
     }));
   };
 
-  const computeDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
-      Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
   const calculateChargeTime = (station: ChargePoint, batteryLeft: number, batteryKWh: number) => {
-    // 단순 계산: 슈퍼차저 150kW, 일반 50kW
     const chargePower = station.type === "Supercharger" ? 150 : 50;
     const kWhNeeded = batteryKWh * (100 - batteryLeft) / 100;
-    return (kWhNeeded / chargePower) * 60; // 분 단위
+    return (kWhNeeded / chargePower) * 60;
   };
-function scoreStation(
-  s: ChargePoint,
-  detourKm: number
-): number {
-  let score = 0;
 
-function minDistanceToRoute(
-  station: ChargePoint,
-  routePoints: {lat:number,lng:number}[]
-) {
-  let min = Infinity;
+  const handleRouteCalculation = async () => {
+    if (!origin.trim() || !destination.trim()) { alert("Please enter Origin and Destination."); return; }
+    if (!window.google?.maps) { alert("Google Maps not loaded yet."); return; }
 
-  for (const p of routePoints) {
-    const d = computeDistanceKm(
-      station.lat,
-      station.lng,
-      p.lat,
-      p.lng
-    );
-    if (d < min) min = d;
-  }
+    const cleanStops = stops.map(s => s.trim()).filter(s => s.length > 2);
 
-  return min;
-}
-
-  // ⚡ 속도
-  if (s.type === "Supercharger") score += 50;
-  else if (s.speed?.includes("150")) score += 40;
-  else if (s.speed?.toLowerCase().includes("fast")) score += 25;
-  else score += 10;
-
-  // 💰 비용
-  if (s.cost?.toLowerCase().includes("free")) score += 30;
-  else if (s.cost && s.cost !== "N/A") score += 15;
-  else score += 5;
-
-  // 🔋 도착 배터리 안정성
-  if (s.batteryAfterReach !== undefined) {
-    if (s.batteryAfterReach >= 15 && s.batteryAfterReach <= 30) score += 20;
-    else if (s.batteryAfterReach >= 8) score += 5;
-    else score -= 30;
-  }
-
-  // 🗺️ 이탈 패널티
-  score -= detourKm * 3;
-
-  return score;
-}
-// 추천 충전소 자동 선택
-const scored = stations.map((s: ChargePoint) => {
-  const detourKm = 5; // v1 단순값 — 다음 단계에서 실제 계산
-  return {
-    station: s,
-    score: scoreStation(s, detourKm)
-  };
-});
-
-scored.sort((a, b) => b.score - a.score);
-
-// 최고 점수 자동 waypoint
-let recommendedId: number | null = null;
-
-if (scored.length > 0) {
-  recommendedId = scored[0].station.id;
-}
-
-
- const handleRouteCalculation = async () => {
-   let timeline:any[] = []; 
-   timeline.push({
-  type: "start",
-  battery: startBattery
-});
-  if (!origin.trim() || !destination.trim()) {
-    alert("Please enter Origin and Destination.");
-    return;
-  }
-
-  const cleanStops = stops
-    .map((s) => s.trim())
-    .filter((s) => s.length > 2);
-
-  try {
-    const service = new window.google.maps.DirectionsService();
-
-    const res = await service.route({
-      origin: origin.trim(),
-      destination: destination.trim(),
-      waypoints: cleanStops.map((s) => ({
-        location: s,
-        stopover: true,
-      })),
-      region: "AU",
-      optimizeWaypoints: false,
-      travelMode: window.google.maps.TravelMode.DRIVING,
-    });
-
-    if (!res.routes || res.routes.length === 0) {
-      alert("No route found.");
-      return;
-    }
-if (!window.google || !window.google.maps) {
-  alert("Google Maps not loaded yet.");
-  return;
-}
-    setDirections(res);
-
-   // ✅ 여기서부터 배터리 계산
-
-    const routeLegs = res.routes[0].legs;
-    const batteryKWh = selectedModel.batteryKWh;
-    const whPerKm = selectedModel.whPerKm;
-
-    let remainingBattery = startBattery;
-    let allStations: ChargePoint[] = [];
-
-    // 여기에 기존 충전소 계산 코드 전부 넣기
-
-
-
-    // 출발지 주변 충전소
-    const originLatLng = routeLegs[0].start_location.toJSON();
-    const originStations: ChargePoint[] = await fetchStations(originLatLng.lat, originLatLng.lng);
-    originStations.forEach((s: ChargePoint) => {
-      const distToStation = computeDistanceKm(originLatLng.lat, originLatLng.lng, s.lat, s.lng);
-      s.batteryAfterReach = remainingBattery - (distToStation * whPerKm) / (batteryKWh * 1000) * 100;
-      s.estimatedChargeTime = calculateChargeTime(s, s.batteryAfterReach!, batteryKWh);
-    });
-    allStations.push(...originStations);
-
-    // 경로 중간 충전소
-    for (const leg of routeLegs) {
-  const legDistanceKm = (leg.distance?.value || 0) / 1000;
-
-  const batteryUsed =
-    (legDistanceKm * whPerKm) / (batteryKWh * 1000) * 100;
-
-  // 이동 전에 부족한지 체크
-  if (remainingBattery - batteryUsed <= 15) {
-
-  timeline.push({
-    type: "charge",
-    battery: remainingBattery
-  });
-    console.log("⚡ Charging before next leg");
-
-    // 80%까지 충전했다고 가정
-    remainingBattery = 80;
-  }
-
-  
-  // 이동
-  remainingBattery -= batteryUsed;
-
-  // 안전장치
-  if (remainingBattery < 0) {
-    remainingBattery = 0;
-  }
-  
-      const midLat = (leg.start_location.lat() + leg.end_location.lat()) / 2;
-      const midLng = (leg.start_location.lng() + leg.end_location.lng()) / 2;
-      const legStations: ChargePoint[] = await fetchStations(midLat, midLng);
-
-      legStations.forEach((s: ChargePoint) => {
-        const distToStation = computeDistanceKm(leg.start_location.lat(), leg.start_location.lng(), s.lat, s.lng);
-        s.batteryAfterReach = remainingBattery - (distToStation * whPerKm) / (batteryKWh * 1000) * 100;
-        s.estimatedChargeTime = calculateChargeTime(s, s.batteryAfterReach!, batteryKWh);
-     
-     
+    try {
+      const service = new window.google.maps.DirectionsService();
+      const res = await service.route({
+        origin: origin.trim(), destination: destination.trim(),
+        waypoints: cleanStops.map(s => ({ location: s, stopover: true })),
+        region: "AU", optimizeWaypoints: false,
+        travelMode: window.google.maps.TravelMode.DRIVING,
       });
 
-      allStations.push(...legStations);
+      if (!res.routes?.length) { alert("No route found."); return; }
+      setDirections(res);
+
+      const routeLegs = res.routes[0].legs;
+      const { batteryKWh, whPerKm } = selectedModel;
+      const timeline: TimelineItem[] = [];
+      let remainingBattery = startBattery;
+
+      timeline.push({ type: "start", battery: startBattery, location: origin });
+
+      const originLatLng = routeLegs[0].start_location.toJSON();
+      const originStations = await fetchStations(originLatLng.lat, originLatLng.lng);
+      const allStations: ChargePoint[] = originStations.map(s => {
+        const dist = computeDistanceKm(originLatLng.lat, originLatLng.lng, s.lat, s.lng);
+        s.batteryAfterReach = remainingBattery - (dist * whPerKm) / (batteryKWh * 1000) * 100;
+        s.estimatedChargeTime = calculateChargeTime(s, s.batteryAfterReach!, batteryKWh);
+        return s;
+      });
+
+      // 배터리 1%당 주행 가능 km
+      const kmPerPercent = (batteryKWh * 1000) / whPerKm / 100;
+      // 충전 필요 임계값 (15% 남으면 충전)
+      const CHARGE_THRESHOLD = 15;
+      // 충전 후 목표 배터리
+      const CHARGE_TARGET = 80;
+
+      for (const leg of routeLegs) {
+        const legDistKm = (leg.distance?.value || 0) / 1000;
+        // 이 구간을 50km 세그먼트로 쪼개서 체크
+        const SEGMENT_KM = 50;
+        let distLeft = legDistKm;
+        let segStart = 0;
+
+        while (distLeft > 0) {
+          const segKm = Math.min(SEGMENT_KM, distLeft);
+          const battUsed = segKm / kmPerPercent;
+
+          if (remainingBattery - battUsed <= CHARGE_THRESHOLD) {
+            // 이 세그먼트 중간에 충전 필요 → 현재 위치 기준으로 충전 기록
+            const progressRatio = segStart / legDistKm;
+            const chargeLabel = progressRatio < 0.3
+              ? leg.start_address
+              : progressRatio > 0.7
+              ? leg.end_address
+              : `Midpoint – ${leg.start_address} → ${leg.end_address}`;
+
+            timeline.push({
+              type: "charge",
+              battery: Math.max(0, remainingBattery - battUsed / 2), // 도착 시 배터리
+              location: chargeLabel,
+            });
+            remainingBattery = CHARGE_TARGET;
+          }
+
+          remainingBattery = Math.max(0, remainingBattery - battUsed);
+          distLeft -= segKm;
+          segStart += segKm;
+        }
+      }
+
+      timeline.push({ type: "arrival", battery: remainingBattery, location: destination });
+      setChargingTimeline(timeline);
+      setStations(allStations);
+
+    } catch (err) {
+      console.error(err);
+      alert("Error calculating route. Please check the console for details.");
     }
-
-    // 🔽 자동 추천 충전소 선택 로직 추가
-const scored = allStations.map((s: ChargePoint) => {
-  const detourKm = 5; // v1 임시값
-  return {
-    station: s,
-    score: scoreStation(s, detourKm),
   };
-});
-
-scored.sort((a, b) => b.score - a.score);
-
-if (scored.length > 0) {
-  scored[0].station.isUsedAsWaypoint = true;
-}
-
-// 🔽 그 다음에 상태 저장
-setStations(allStations);
-setDirections(res);
-setShowMap(true);
-
-    const totalKm = routeLegs.reduce((sum: number, leg: any) => sum + (leg.distance?.value || 0), 0) / 1000;
-    setResultText(
-      remainingBattery < 15
-        ? `Trip distance ${totalKm.toFixed(1)}km — Battery on arrival ${remainingBattery.toFixed(1)}% → ⚠️ Charging required`
-        : `Trip distance ${totalKm.toFixed(1)}km — Battery on arrival ${remainingBattery.toFixed(1)}%`
-    ); 
-    timeline.push({
-  type: "arrival",
-  battery: remainingBattery
-});
-
-setChargingTimeline(timeline);
-
-  } catch (err) {
-    console.error(err);
-    alert("Error calculating route. Please check the console for details.");          
- }
-};
-  
 
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    
     <div>
-      {/* 🔥 상단 배너 */}
-<div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center mb-8">
-  <h1 className="text-3xl font-bold">⚡ EV Route Pro</h1>
-  <p className="mt-2 text-lg">
-    Smart EV trip planner for Australia
-  </p>
-  <p className="text-sm mt-1 text-green-100">
-    Plan your drive. Optimize charging. Arrive stress-free.
-  </p>
+      {/* Banner */}
+      <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center mb-8">
+        <h1 className="text-3xl font-bold">⚡ EV Route Pro</h1>
+        <p className="mt-2 text-lg">Smart EV trip planner for Australia</p>
+        <p className="text-sm mt-1 text-green-100">Plan your drive. Optimize charging. Arrive stress-free.</p>
+        <button onClick={() => document.getElementById("planner-form")?.scrollIntoView({ behavior: "smooth" })}
+          className="mt-4 bg-white text-emerald-600 font-semibold px-6 py-2 rounded-lg shadow hover:bg-gray-100 transition">
+          Start Planning
+        </button>
+      </div>
 
-  <button
-    onClick={() => {
-      const form = document.getElementById("planner-form");
-      form?.scrollIntoView({ behavior: "smooth" });
-    }}
-    className="mt-4 bg-white text-emerald-600 font-semibold px-6 py-2 rounded-lg shadow hover:bg-gray-100 transition"
-  >
-    Start Planning
-  </button>
-</div>
-<div className="max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-lg -mt-8 relative z-10 mb-6">
-      <form
-  id="planner-form"
-  className="mb-4 flex gap-3 flex-wrap items-center"
-  onSubmit={e => { e.preventDefault(); handleRouteCalculation(); }}
->
-        <input placeholder="Origin" value={origin} onChange={e => setOrigin(e.target.value)} className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        <button
-  type="button"
-  onClick={() => {
-    const temp = origin;
-    setOrigin(destination);
-    setDestination(temp);
-  }}
-  
-  className="bg-white border border-gray-200 shadow-md hover:bg-gray-50 p-3 rounded-full transition hover:scale-105"
->
-  <ArrowLeftRight size={20} />
-</button>
-        <input placeholder="Destination" value={destination} onChange={e => setDestination(e.target.value)} className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-      {/* 🔥 Optional Stops */}
-{stops.map((stop, index) => (
-  <div key={index} className="flex gap-2">
-    <input
-      value={stop}
-      onChange={(e) => {
-        const updatedStops = [...stops];
-        updatedStops[index] = e.target.value;
-        setStops(updatedStops);
-      }}
-      placeholder={`Stop ${index + 1}`}
-      className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-    />
+      {/* Form */}
+      <div className="max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-lg -mt-8 relative z-10 mb-6">
+        <form id="planner-form" className="mb-4 flex gap-3 flex-wrap items-center"
+          onSubmit={e => { e.preventDefault(); handleRouteCalculation(); }}>
+          <input placeholder="Origin" value={origin} onChange={e => setOrigin(e.target.value)}
+            className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <button type="button" onClick={() => { const t = origin; setOrigin(destination); setDestination(t); }}
+            className="bg-white border border-gray-200 shadow-md hover:bg-gray-50 p-3 rounded-full transition hover:scale-105">
+            <ArrowLeftRight size={20} />
+          </button>
+          <input placeholder="Destination" value={destination} onChange={e => setDestination(e.target.value)}
+            className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
 
-    <button
-      type="button"
-      onClick={() => {
-        const updatedStops = stops.filter((_, i) => i !== index);
-        setStops(updatedStops);
-      }}
-      className="text-red-500 font-bold px-2"
-    >
-      ✕
-    </button>
-  </div>
-))}
-
-<button
-  type="button"
-  onClick={() => setStops([...stops, ""])}
-  className="mt-2 text-sm text-emerald-600 hover:underline"
->
-  + Add Stop (Optional - city, landmark, charger)
-</button> 
-       <div className="flex gap-4">
-        <select
-          className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          value={selectedModel.name}
-          onChange={e => setSelectedModel(EV_MODELS.find(m => m.name === e.target.value) || EV_MODELS[0])}
-        
-        >
-          {EV_MODELS.map((m, idx) => (
-            <option key={idx} value={m.name}>{m.name}</option>
+          {stops.map((stop, index) => (
+            <div key={index} className="flex gap-2 w-full">
+              <input value={stop} onChange={e => { const u = [...stops]; u[index] = e.target.value; setStops(u); }}
+                placeholder={`Stop ${index + 1}`}
+                className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <button type="button" onClick={() => setStops(stops.filter((_, i) => i !== index))}
+                className="text-red-500 font-bold px-2">✕</button>
+            </div>
           ))}
-        </select>
-        <input type="number" placeholder="시작 배터리 %" value={startBattery} onChange={e => setStartBattery(Number(e.target.value))} className="w-24 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-      
-        </div>
 
-        <div className="flex flex-col md:flex-row gap-4">
-        <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-lg font-semibold transition">Plan route</button>
-        {directions && (
-        <button
-          type="button"
-          className="flex-1 border-2 border-orange-500 text-orange-500 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold transition"
-       onClick={() => {
-  const waypointStr = stations
-    .filter((s: ChargePoint) => s.isUsedAsWaypoint)
-    .map((s: ChargePoint) => `${s.lat},${s.lng}`)
-    .join("|");
+          <button type="button" onClick={() => setStops([...stops, ""])}
+            className="mt-2 text-sm text-emerald-600 hover:underline">
+            + Add Stop (Optional - city, landmark, charger)
+          </button>
 
-  let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving`;
-  url += `&origin=${encodeURIComponent(origin)}`;
-  url += `&destination=${encodeURIComponent(destination)}`;
+          <div className="flex gap-4 w-full">
+            <select className="flex-1 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              value={selectedModel.name} onChange={e => setSelectedModel(EV_MODELS.find(m => m.name === e.target.value) || EV_MODELS[0])}>
+              {EV_MODELS.map((m, idx) => <option key={idx} value={m.name}>{m.name}</option>)}
+            </select>
+            <input type="number" placeholder="시작 배터리 %" value={startBattery}
+              onChange={e => setStartBattery(Number(e.target.value))}
+              className="w-24 bg-gray-100 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
 
-  if (waypointStr) {
-    url += `&waypoints=${encodeURIComponent(waypointStr)}`;
-  }
-
-  url += `&dir_action=navigate`;
-
-  window.open(url, "_blank");
-}}
-
-
-
-        >
-          Open in Google Maps
-        </button>)}
-        </div>
-      </form>
-      
-    </div>
+          <div className="flex flex-col md:flex-row gap-4 w-full">
+            <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-lg font-semibold transition">
+              Plan route
+            </button>
+            {directions && (
+              <button type="button"
+                className="flex-1 border-2 border-orange-500 text-orange-500 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold transition"
+                onClick={() => {
+                  const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
+                  let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+                  if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
+                  url += `&dir_action=navigate`;
+                  window.open(url, "_blank");
+                }}>
+                Open in Google Maps
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
 
       {resultText && <div className="mb-3 p-3 bg-green-100 rounded">{resultText}</div>}
-<div className="relative"></div>
 
-{/* 🔋 Charging Timeline */}
-{chargingTimeline.length > 0 && (
-  <div className="bg-white p-4 rounded-xl shadow mb-4">
-    <h3 className="font-semibold mb-2">Trip Charging Plan</h3>
+      {/* ✨ Beautiful Charging Timeline */}
+      {chargingTimeline.length > 0 && <ChargingTimeline items={chargingTimeline} />}
 
-    {chargingTimeline.map((item, index) => (
-      <div key={index} className="flex justify-between text-sm py-1">
+      {/* Map */}
+      {showMap && (
+        <div className="relative">
+          <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={10}>
+            {directions && <DirectionsRenderer directions={directions} />}
 
-        {item.type === "start" && <span>🚗 Start</span>}
-        {item.type === "charge" && <span>⚡ Charging Stop</span>}
-        {item.type === "arrival" && <span>🏁 Arrival</span>}
-
-        <span>{item.battery.toFixed(1)}%</span>
-
-      </div>
-    ))}
-  </div>
-)}
-
-{showMap && (
-
-      <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={10}>
-        {directions && <DirectionsRenderer directions={directions} />}
-       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-md text-sm z-20">
-  <div className="flex items-center gap-2 mb-1">
-    <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-    Selected Stop
-  </div>
-  <div className="flex items-center gap-2 mb-1">
-    <span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
-    Supercharger
-  </div>
-  <div className="flex items-center gap-2">
-    <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
-    Standard Charger
-  </div>
-</div>
-        {stations.map((station: ChargePoint) => (
-          <Marker
-            key={station.id}
-            position={{ lat: station.lat, lng: station.lng }}
-            title={`${station.title} (${station.type})`}
-            icon={{
-              url: station.isUsedAsWaypoint
-                ? "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                : station.type === "Supercharger"
-                  ? "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
-                  : "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-            }}
-            onClick={() => setSelectedStation(station)}
-          />
-        ))}
-       {selectedStation && (
-  <InfoWindow
-    position={{
-      lat: selectedStation.lat,
-      lng: selectedStation.lng
-    }}
-    onCloseClick={() => setSelectedStation(null)}
-  >
-    <div>
-      <strong>{selectedStation.title}</strong>
-
-      <p>Type: {selectedStation.type}</p>
-      <p>Speed: {selectedStation.speed}</p>
-      <p>Cost: {selectedStation.cost}</p>
-      <p>Address: {selectedStation.address}</p>
-
-      {selectedStation.batteryAfterReach !== undefined && (
-        <p>
-          Battery on Arrival:{" "}
-          {selectedStation.batteryAfterReach.toFixed(1)}%
-        </p>
-      )}
-
-      {selectedStation.estimatedChargeTime !== undefined && (
-        <p>
-          Estimated Charge Time:{" "}
-          {selectedStation.estimatedChargeTime.toFixed(0)} min
-        </p>
-      )}
-
-      <div className="flex gap-2 mt-3">
-        {!selectedStation.isUsedAsWaypoint ? (
-          <button
-            className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition"
-            onClick={() => {
-  const updatedStations = stations.map((s) =>
-    s.id === selectedStation.id
-      ? { ...s, isUsedAsWaypoint: true }
-      : s
-  );
-
-  setStations(updatedStations);
-
-  setSelectedStation({
-    ...selectedStation,
-    isUsedAsWaypoint: true,
-  });
-}}
-          >
-            Add as Charging stop
-          </button>
-        ) : (
-          <button
-            className="bg-gray-300 text-black px-3 py-2 rounded-lg text-sm hover:bg-gray-400 transition"
-           onClick={() => {
-  const updatedStations = stations.map((s) =>
-    s.id === selectedStation.id
-      ? { ...s, isUsedAsWaypoint: false }
-      : s
-  );
-
-  setStations(updatedStations);
-
-  setSelectedStation({
-    ...selectedStation,
-    isUsedAsWaypoint: false,
-  });
-}}
-          >
-            Remove Charging stop
-          </button>
-        )}
-      </div>
-    </div>
-  </InfoWindow>
-)}
-              </GoogleMap>)}
+            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-md text-sm z-20">
+              <div className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />Selected Stop</div>
+              <div className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" />Supercharger</div>
+              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" />Standard Charger</div>
             </div>
-          );
-        }
+
+            {stations.map(station => (
+              <Marker key={station.id} position={{ lat: station.lat, lng: station.lng }}
+                title={`${station.title} (${station.type})`}
+                icon={{
+                  url: station.isUsedAsWaypoint
+                    ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                    : station.type === "Supercharger"
+                    ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                    : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                }}
+                onClick={() => setSelectedStation(station)} />
+            ))}
+
+            {selectedStation && (
+              <InfoWindow position={{ lat: selectedStation.lat, lng: selectedStation.lng }}
+                onCloseClick={() => setSelectedStation(null)}>
+                <div>
+                  <strong>{selectedStation.title}</strong>
+                  <p>Type: {selectedStation.type}</p>
+                  <p>Speed: {selectedStation.speed}</p>
+                  <p>Cost: {selectedStation.cost}</p>
+                  <p>Address: {selectedStation.address}</p>
+                  {selectedStation.batteryAfterReach !== undefined && (
+                    <p>Battery on Arrival: {selectedStation.batteryAfterReach.toFixed(1)}%</p>
+                  )}
+                  {selectedStation.estimatedChargeTime !== undefined && (
+                    <p>Estimated Charge Time: {selectedStation.estimatedChargeTime.toFixed(0)} min</p>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    {!selectedStation.isUsedAsWaypoint ? (
+                      <button className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition"
+                        onClick={() => {
+                          const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: true } : s);
+                          setStations(u); setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
+                        }}>Add as Charging stop</button>
+                    ) : (
+                      <button className="bg-gray-300 text-black px-3 py-2 rounded-lg text-sm hover:bg-gray-400 transition"
+                        onClick={() => {
+                          const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
+                          setStations(u); setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
+                        }}>Remove Charging stop</button>
+                    )}
+                  </div>
+                </div>
+              </InfoWindow>
+            )}
+          </GoogleMap>
+        </div>
+      )}
+    </div>
+  );
+}
