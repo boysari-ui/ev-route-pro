@@ -37,7 +37,7 @@ const EV_MODELS: EVModel[] = [
   { name: "Nissan Ariya", batteryKWh: 87, whPerKm: 195 },
 ];
 
-interface TimelineItem { type: "start" | "charge" | "arrival"; battery: number; location: string; }
+interface TimelineItem { type: "start" | "charge" | "arrival"; battery: number; location: string; lat?: number; lng?: number; }
 
 interface ChargePoint {
   id: number; lat: number; lng: number; title: string; type: string;
@@ -102,13 +102,15 @@ function ChargingTimeline({ items }: { items: TimelineItem[] }) {
 
   return (
     <div style={{
-      maxWidth: 580,
+      maxWidth: 896,
+      width: "100%",
       margin: "0 auto 28px",
       background: "linear-gradient(160deg, #0d1117 0%, #161b27 60%, #0d1117 100%)",
       borderRadius: 24,
       padding: "28px 24px 24px",
       boxShadow: "0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
       border: "1px solid rgba(255,255,255,0.07)",
+      boxSizing: "border-box" as const,
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
@@ -177,7 +179,7 @@ function ChargingTimeline({ items }: { items: TimelineItem[] }) {
                     }}>{c.label}</div>
                     <div style={{
                       color: "#e2e8f0", fontSize: 15, fontWeight: 600,
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      whiteSpace: "normal", wordBreak: "break-word",
                     }}>
                       {item.location}
                     </div>
@@ -247,6 +249,16 @@ export default function Map() {
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
   const [showMap, setShowMap] = useState(true);
+  const [visibleTypes, setVisibleTypes] = useState<Set<string>>(new Set(["Selected Stop", "Supercharger", "Standard"]));
+
+  const toggleType = (type: string) => {
+    setVisibleTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  };
 
   const fetchStations = async (lat: number, lng: number): Promise<ChargePoint[]> => {
     const distanceKm = 50;
@@ -263,7 +275,12 @@ export default function Map() {
         d.Title?.toLowerCase().includes("supercharger") ? "Supercharger" : "Standard",
       cost: d.UsageCost || "N/A",
       speed: d.Connections?.[0]?.Level?.Title || "N/A",
-      address: d.AddressInfo.AddressLine1 || "",
+      address: [
+        d.AddressInfo.AddressLine1,
+        d.AddressInfo.Town,
+        d.AddressInfo.StateOrProvince,
+        d.AddressInfo.Postcode,
+      ].filter(Boolean).join(", ") || "Address not available",
       isUsedAsWaypoint: false, batteryAfterReach: undefined, estimatedChargeTime: undefined,
     }));
   };
@@ -299,58 +316,113 @@ export default function Map() {
 
       timeline.push({ type: "start", battery: startBattery, location: origin });
 
-      const originLatLng = routeLegs[0].start_location.toJSON();
-      const originStations = await fetchStations(originLatLng.lat, originLatLng.lng);
-      const allStations: ChargePoint[] = originStations.map(s => {
-        const dist = computeDistanceKm(originLatLng.lat, originLatLng.lng, s.lat, s.lng);
-        s.batteryAfterReach = remainingBattery - (dist * whPerKm) / (batteryKWh * 1000) * 100;
-        s.estimatedChargeTime = calculateChargeTime(s, s.batteryAfterReach!, batteryKWh);
-        return s;
-      });
-
-      // ── 배터리 시뮬레이션 ──────────────────────────────────────────
+      // ── step 좌표 수집 ────────────────────────────────────────────
       const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
       const CHARGE_THRESHOLD = 20;
       const CHARGE_TARGET = 80;
 
-      // 각 leg의 누적거리 + start_address 수집 (Geocoding 불필요)
-      const legPoints: { km: number; address: string }[] = [];
+      const stepCoords: { km: number; lat: number; lng: number }[] = [];
       let cumKm = 0;
       for (const leg of routeLegs) {
-        legPoints.push({ km: cumKm, address: leg.start_address });
-        cumKm += (leg.distance?.value || 0) / 1000;
+        for (const step of (leg as any).steps || []) {
+          stepCoords.push({
+            km: cumKm,
+            lat: step.start_location.lat(),
+            lng: step.start_location.lng(),
+          });
+          cumKm += (step.distance?.value || 0) / 1000;
+        }
       }
-      // 목적지도 추가
-      legPoints.push({ km: cumKm, address: routeLegs[routeLegs.length - 1].end_address });
       const totalKm = cumKm;
 
-      // 충전 지점 계산
+      // ── 충전 지점 계산 + 각 지점 주변 충전소 fetch ────────────────
+      const AU_CITIES = [
+        { name: "Seymour VIC",      lat: -37.03, lng: 145.14 },
+        { name: "Benalla VIC",      lat: -36.55, lng: 145.98 },
+        { name: "Wangaratta VIC",   lat: -36.36, lng: 146.31 },
+        { name: "Albury NSW",       lat: -36.08, lng: 146.91 },
+        { name: "Holbrook NSW",     lat: -35.73, lng: 147.31 },
+        { name: "Wagga Wagga NSW",  lat: -35.12, lng: 147.37 },
+        { name: "Gundagai NSW",     lat: -35.06, lng: 148.10 },
+        { name: "Goulburn NSW",     lat: -34.75, lng: 149.72 },
+        { name: "Mittagong NSW",    lat: -34.45, lng: 150.45 },
+        { name: "Campbelltown NSW", lat: -34.07, lng: 150.81 },
+        { name: "Shepparton VIC",   lat: -36.38, lng: 145.40 },
+        { name: "Canberra ACT",     lat: -35.28, lng: 149.13 },
+      ];
+
       let currentBattery = startBattery;
       let travelledKm = 0;
+      const allStations: ChargePoint[] = [];
+      const fetchedCoords = new Set<string>();
+
+      // 출발지 충전소
+      const originLatLng = routeLegs[0].start_location.toJSON();
+      const originStations = await fetchStations(originLatLng.lat, originLatLng.lng);
+      originStations.forEach(s => {
+        const dist = computeDistanceKm(originLatLng.lat, originLatLng.lng, s.lat, s.lng);
+        s.batteryAfterReach = currentBattery - (dist * whPerKm) / (batteryKWh * 1000) * 100;
+        s.estimatedChargeTime = calculateChargeTime(s, s.batteryAfterReach!, batteryKWh);
+      });
+      allStations.push(...originStations);
+      fetchedCoords.add(`${originLatLng.lat.toFixed(1)},${originLatLng.lng.toFixed(1)}`);
 
       while (true) {
-        const kmToThreshold = (currentBattery - CHARGE_THRESHOLD) * KM_PER_PERCENT;
-        const chargeAtKm = travelledKm + kmToThreshold;
-
+        const kmUntilThreshold = (currentBattery - CHARGE_THRESHOLD) * KM_PER_PERCENT;
+        const chargeAtKm = travelledKm + kmUntilThreshold;
         if (chargeAtKm >= totalKm) break;
 
-        // 충전 지점에 가장 가까운 leg 주소 찾기
-        const closest = legPoints.reduce((prev, curr) =>
+        // 해당 km의 경로 좌표
+        const pt = stepCoords.reduce((prev, curr) =>
           Math.abs(curr.km - chargeAtKm) < Math.abs(prev.km - chargeAtKm) ? curr : prev
         );
 
-        // "21 Hume Hwy, Goulburn NSW 2580, Australia" → "Goulburn NSW"
-        // leg.start_address 형태: "Seymour VIC 3660, Australia" 또는 "Hume Hwy, Goulburn NSW 2580, Australia"
-        const parts = closest.address.split(",");
-        // 뒤에서 두번째 = "City STATE postcode" 또는 마지막에서 1번째
-        const raw = parts.length >= 2 ? parts[parts.length - 2].trim() : parts[0].trim();
-        // 숫자(우편번호) 제거 후 trim
-        const cityName = raw.replace(/\s*\d{4,}\s*/g, " ").trim();
+        // 이 충전 지점 주변 충전소 fetch
+        const coordKey = `${pt.lat.toFixed(1)},${pt.lng.toFixed(1)}`;
+        let chargeLocationName: string | null = null;
+
+        if (!fetchedCoords.has(coordKey)) {
+          fetchedCoords.add(coordKey);
+          const nearbyStations = await fetchStations(pt.lat, pt.lng);
+
+          // 가장 가까운 충전소 찾기 → 그 주소를 timeline에 사용
+          let closestStation: ChargePoint | null = null;
+          let closestDist = Infinity;
+          nearbyStations.forEach(s => {
+            const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestStation = s;
+            }
+            // 중복 제거 후 allStations에 추가
+            if (!allStations.find(existing => existing.id === s.id)) {
+              s.batteryAfterReach = CHARGE_THRESHOLD;
+              s.estimatedChargeTime = calculateChargeTime(s, CHARGE_THRESHOLD, batteryKWh);
+              allStations.push(s);
+            }
+          });
+
+          if (closestStation) {
+            // title + address 조합으로 정확한 주소 표시
+            const st = closestStation as ChargePoint;
+            chargeLocationName = [st.title, st.address].filter(Boolean).join(", ");
+          }
+        }
+
+        // 충전소 주소 없으면 도시명 fallback
+        if (!chargeLocationName) {
+          const nearestCity = AU_CITIES.reduce((prev, curr) =>
+            Math.hypot(curr.lat - pt.lat, curr.lng - pt.lng) < Math.hypot(prev.lat - pt.lat, prev.lng - pt.lng) ? curr : prev
+          );
+          chargeLocationName = nearestCity.name;
+        }
 
         timeline.push({
           type: "charge",
-          battery: Math.round(currentBattery - kmToThreshold / KM_PER_PERCENT * KM_PER_PERCENT),
-          location: cityName,
+          battery: CHARGE_THRESHOLD,
+          location: chargeLocationName,
+          lat: pt.lat,
+          lng: pt.lng,
         });
 
         currentBattery = CHARGE_TARGET;
@@ -363,7 +435,29 @@ export default function Map() {
 
       timeline.push({ type: "arrival", battery: remainingBattery, location: destination });
       setChargingTimeline(timeline);
-      setStations(allStations);
+
+      // 타임라인의 충전 정거장 좌표를 파란 마커(isUsedAsWaypoint)로 지도에 표시
+      const timelineChargeStops = timeline
+        .filter(i => i.type === "charge" && i.lat && i.lng)
+        .map((i, idx) => ({
+          id: -(idx + 1), // 음수 ID로 실제 충전소와 구분
+          lat: i.lat!,
+          lng: i.lng!,
+          title: i.location,
+          type: "Timeline Stop",
+          address: i.location,
+          isUsedAsWaypoint: true,
+          batteryAfterReach: i.battery,
+        } as ChargePoint));
+
+      // allStations에 타임라인 마커 추가 (중복 없이)
+      const mergedStations = [...allStations];
+      timelineChargeStops.forEach(ts => {
+        if (!mergedStations.find(s => s.id === ts.id)) {
+          mergedStations.push(ts);
+        }
+      });
+      setStations(mergedStations);
 
     } catch (err) {
       console.error(err);
@@ -452,28 +546,65 @@ export default function Map() {
 
       {/* Map */}
       {showMap && (
-        <div className="relative">
+        <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
           <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={10}>
             {directions && <DirectionsRenderer directions={directions} />}
 
-            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-md text-sm z-20">
-              <div className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />Selected Stop</div>
-              <div className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" />Supercharger</div>
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" />Standard Charger</div>
+            <div className="absolute top-16 left-3 flex flex-col gap-2 z-20">
+              {[
+                { label: "Selected Stop", color: "#3b82f6", type: "Selected Stop" },
+                { label: "Supercharger",  color: "#ef4444", type: "Supercharger" },
+                { label: "Standard Charger", color: "#22c55e", type: "Standard" },
+              ].map(({ label, color, type }) => {
+                const active = visibleTypes.has(type);
+                return (
+                  <button
+                    key={type}
+                    onClick={() => toggleType(type)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "6px 12px",
+                      borderRadius: 20,
+                      border: `2px solid ${color}`,
+                      background: active ? color : "rgba(255,255,255,0.92)",
+                      color: active ? "white" : "#333",
+                      fontSize: 12, fontWeight: 600,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      transition: "all 0.15s ease",
+                      backdropFilter: "blur(4px)",
+                    }}
+                  >
+                    <span style={{
+                      width: 10, height: 10, borderRadius: "50%",
+                      background: active ? "white" : color,
+                      flexShrink: 0,
+                    }} />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
-            {stations.map(station => (
-              <Marker key={station.id} position={{ lat: station.lat, lng: station.lng }}
-                title={`${station.title} (${station.type})`}
-                icon={{
-                  url: station.isUsedAsWaypoint
-                    ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                    : station.type === "Supercharger"
-                    ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
-                    : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                }}
-                onClick={() => setSelectedStation(station)} />
-            ))}
+            {stations
+              .filter(station => {
+                if (station.isUsedAsWaypoint) return visibleTypes.has("Selected Stop");
+                if (station.type === "Supercharger") return visibleTypes.has("Supercharger");
+                return visibleTypes.has("Standard");
+              })
+              .map(station => (
+                <Marker key={station.id} position={{ lat: station.lat, lng: station.lng }}
+                  title={`${station.title} (${station.type})`}
+                  icon={{
+                    url: station.isUsedAsWaypoint
+                      ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                      : station.type === "Supercharger"
+                      ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                      : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                  }}
+                  onClick={() => setSelectedStation(station)} />
+              ))
+            }
 
             {selectedStation && (
               <InfoWindow position={{ lat: selectedStation.lat, lng: selectedStation.lng }}
@@ -495,13 +626,34 @@ export default function Map() {
                       <button className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition"
                         onClick={() => {
                           const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: true } : s);
-                          setStations(u); setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
+                          setStations(u);
+                          setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
+                          // 타임라인에 추가: Arrival 바로 앞에 삽입
+                          setChargingTimeline(prev => {
+                            const arrivalIdx = prev.findIndex(i => i.type === "arrival");
+                            const newStop: TimelineItem = {
+                              type: "charge",
+                              battery: selectedStation.batteryAfterReach ?? 20,
+                              location: [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
+                            };
+                            if (arrivalIdx === -1) return [...prev, newStop];
+                            const next = [...prev];
+                            next.splice(arrivalIdx, 0, newStop);
+                            return next;
+                          });
                         }}>Add as Charging stop</button>
                     ) : (
                       <button className="bg-gray-300 text-black px-3 py-2 rounded-lg text-sm hover:bg-gray-400 transition"
                         onClick={() => {
                           const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
-                          setStations(u); setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
+                          setStations(u);
+                          setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
+                          // 타임라인에서 제거: 이 충전소 title이 포함된 항목 삭제
+                          setChargingTimeline(prev =>
+                            prev.filter(i =>
+                              !(i.type === "charge" && i.location.includes(selectedStation.title))
+                            )
+                          );
                         }}>Remove Charging stop</button>
                     )}
                   </div>
