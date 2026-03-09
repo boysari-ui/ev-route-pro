@@ -308,47 +308,78 @@ export default function Map() {
         return s;
       });
 
-      // 배터리 시뮬레이션 (10km 단위)
+      // ── 배터리 시뮬레이션 ──────────────────────────────────────────
+      // Tesla Model 3 60kWh, 160Wh/km 기준: 1% = (60000/160)/100 = 3.75km
       const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
-      const CHARGE_THRESHOLD = 20;
-      const CHARGE_TARGET = 80;
-      const STEP_KM = 10;
+      const CHARGE_THRESHOLD = 20; // 20% 이하면 충전
+      const CHARGE_TARGET = 80;    // 충전 목표
 
-      // 경로 step별 위치 수집
-      const routeSteps: { distFromStart: number; lat: number; lng: number; address: string }[] = [];
-      let cumDist = 0;
+      // 전체 경로의 누적 거리별 좌표 수집 (leg 단위)
+      interface RoutePoint { km: number; lat: number; lng: number; }
+      const routePoints: RoutePoint[] = [];
+      let cumKm = 0;
+
       for (const leg of routeLegs) {
-        for (const step of (leg as any).steps) {
-          routeSteps.push({
-            distFromStart: cumDist,
-            lat: step.start_location.lat(),
-            lng: step.start_location.lng(),
-            address: leg.start_address,
+        // leg 시작점 추가
+        routePoints.push({
+          km: cumKm,
+          lat: leg.start_location.lat(),
+          lng: leg.start_location.lng(),
+        });
+        // leg 내 각 step 추가
+        for (const step of (leg as any).steps || []) {
+          cumKm += (step.distance?.value || 0) / 1000;
+          routePoints.push({
+            km: cumKm,
+            lat: step.end_location.lat(),
+            lng: step.end_location.lng(),
           });
-          cumDist += (step.distance?.value || 0) / 1000;
         }
       }
 
-      const totalKm = cumDist;
-      let distanceTravelled = 0;
-      let chargedAtKm = -300;
+      const totalKm = cumKm;
 
-      while (distanceTravelled < totalKm) {
-        distanceTravelled = Math.min(distanceTravelled + STEP_KM, totalKm);
-        remainingBattery = Math.max(0, remainingBattery - STEP_KM / KM_PER_PERCENT);
+      // 충전이 필요한 km 지점들을 미리 계산
+      // 출발 배터리로 갈 수 있는 거리 = remainingBattery * KM_PER_PERCENT
+      // 충전 임계값(20%)에 도달하는 거리 = (remainingBattery - CHARGE_THRESHOLD) * KM_PER_PERCENT
+      let batteryAtKm = remainingBattery; // 현재 배터리 (출발 시)
+      let lastChargeKm = 0;
 
-        if (remainingBattery <= CHARGE_THRESHOLD && distanceTravelled - chargedAtKm > 80) {
-          const closest = routeSteps.reduce((prev, curr) =>
-            Math.abs(curr.distFromStart - distanceTravelled) < Math.abs(prev.distFromStart - distanceTravelled) ? curr : prev
-          );
-          const addr = await getAddress(closest.lat, closest.lng) || closest.address;
-          const shortAddr = addr.split(",").slice(0, 2).join(",").trim();
+      // 충전이 필요한 지점을 순서대로 찾아서 timeline에 추가
+      while (true) {
+        // 현재 배터리로 CHARGE_THRESHOLD까지 주행 가능한 거리
+        const kmUntilCharge = (batteryAtKm - CHARGE_THRESHOLD) * KM_PER_PERCENT;
+        const chargeNeededAtKm = lastChargeKm + kmUntilCharge;
 
-          timeline.push({ type: "charge", battery: remainingBattery, location: shortAddr });
-          remainingBattery = CHARGE_TARGET;
-          chargedAtKm = distanceTravelled;
-        }
+        if (chargeNeededAtKm >= totalKm) break; // 충전 없이 도착 가능
+
+        // 해당 km에 가장 가까운 경로 포인트 찾기
+        const closest = routePoints.reduce((prev, curr) =>
+          Math.abs(curr.km - chargeNeededAtKm) < Math.abs(prev.km - chargeNeededAtKm) ? curr : prev
+        );
+
+        // 실제 주소 가져오기 (geocoding)
+        const addr = await getAddress(closest.lat, closest.lng);
+        // "21 Main St, Goulburn NSW 2580, Australia" → "Goulburn NSW"
+        const parts = (addr || "").split(",");
+        const shortAddr = parts.length >= 2
+          ? parts.slice(-3, -1).join(",").trim()  // 뒤에서 3번째~2번째 = 도시+주
+          : (addr || "Unknown location");
+
+        timeline.push({
+          type: "charge",
+          battery: CHARGE_THRESHOLD, // 정확히 20%에 충전
+          location: shortAddr,
+        });
+
+        // 충전 후 상태 업데이트
+        batteryAtKm = CHARGE_TARGET;
+        lastChargeKm = chargeNeededAtKm;
       }
+
+      // 최종 도착 배터리
+      const remainingKm = totalKm - lastChargeKm;
+      remainingBattery = Math.max(0, batteryAtKm - remainingKm / KM_PER_PERCENT);
 
       timeline.push({ type: "arrival", battery: remainingBattery, location: destination });
       setChargingTimeline(timeline);
