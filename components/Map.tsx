@@ -308,70 +308,47 @@ export default function Map() {
         return s;
       });
 
-      // ── 배터리 시뮬레이션 ──────────────────────────────────────────
+      // 배터리 시뮬레이션 (10km 단위)
       const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
       const CHARGE_THRESHOLD = 20;
       const CHARGE_TARGET = 80;
+      const STEP_KM = 10;
 
-      // 경로의 모든 step에서 누적거리 + 좌표 수집
-      const routePoints: { km: number; lat: number; lng: number }[] = [];
-      let cumKm = 0;
+      // 경로 step별 위치 수집
+      const routeSteps: { distFromStart: number; lat: number; lng: number; address: string }[] = [];
+      let cumDist = 0;
       for (const leg of routeLegs) {
-        routePoints.push({ km: cumKm, lat: leg.start_location.lat(), lng: leg.start_location.lng() });
-        for (const step of (leg as any).steps || []) {
-          cumKm += (step.distance?.value || 0) / 1000;
-          routePoints.push({ km: cumKm, lat: step.end_location.lat(), lng: step.end_location.lng() });
+        for (const step of (leg as any).steps) {
+          routeSteps.push({
+            distFromStart: cumDist,
+            lat: step.start_location.lat(),
+            lng: step.start_location.lng(),
+            address: leg.start_address,
+          });
+          cumDist += (step.distance?.value || 0) / 1000;
         }
       }
-      const totalKm = cumKm;
 
-      // 충전 지점 계산: 현재 배터리가 CHARGE_THRESHOLD가 되는 km를 계산
-      let currentBattery = startBattery;
-      let travelledKm = 0;
+      const totalKm = cumDist;
+      let distanceTravelled = 0;
+      let chargedAtKm = -300;
 
-      while (true) {
-        // 현재 배터리로 CHARGE_THRESHOLD까지 갈 수 있는 km
-        const kmToThreshold = (currentBattery - CHARGE_THRESHOLD) * KM_PER_PERCENT;
-        const chargeAtKm = travelledKm + kmToThreshold;
+      while (distanceTravelled < totalKm) {
+        distanceTravelled = Math.min(distanceTravelled + STEP_KM, totalKm);
+        remainingBattery = Math.max(0, remainingBattery - STEP_KM / KM_PER_PERCENT);
 
-        // 이 지점이 목적지 이후면 충전 불필요
-        if (chargeAtKm >= totalKm) break;
+        if (remainingBattery <= CHARGE_THRESHOLD && distanceTravelled - chargedAtKm > 80) {
+          const closest = routeSteps.reduce((prev, curr) =>
+            Math.abs(curr.distFromStart - distanceTravelled) < Math.abs(prev.distFromStart - distanceTravelled) ? curr : prev
+          );
+          const addr = await getAddress(closest.lat, closest.lng) || closest.address;
+          const shortAddr = addr.split(",").slice(0, 2).join(",").trim();
 
-        // 해당 km에 가장 가까운 경로 포인트 찾기
-        const pt = routePoints.reduce((prev, curr) =>
-          Math.abs(curr.km - chargeAtKm) < Math.abs(prev.km - chargeAtKm) ? curr : prev
-        );
-
-        // Geocoding으로 실제 도시명 가져오기
-        // getAddress 반환 예: "Hume Hwy, Goulburn NSW 2580, Australia"
-        // 원하는 형태: "Goulburn NSW"
-        const fullAddr = await getAddress(pt.lat, pt.lng) ?? "";
-        let cityName = "Unknown";
-        if (fullAddr) {
-          // 쉼표로 split 후 우편번호 포함된 파트에서 도시명 추출
-          // 예: ["Hume Hwy", " Goulburn NSW 2580", " Australia"]
-          // → "Goulburn NSW 2580" → 숫자 제거 → "Goulburn NSW"
-          const parts = fullAddr.split(",");
-          // 뒤에서 두번째 파트 (Australia 바로 앞)가 보통 "City STATE postcode"
-          const cityPart = parts.length >= 2 ? parts[parts.length - 2].trim() : parts[0].trim();
-          // 우편번호(숫자) 제거
-          cityName = cityPart.replace(/\d{4,}/, "").trim();
+          timeline.push({ type: "charge", battery: remainingBattery, location: shortAddr });
+          remainingBattery = CHARGE_TARGET;
+          chargedAtKm = distanceTravelled;
         }
-
-        timeline.push({
-          type: "charge",
-          battery: CHARGE_THRESHOLD,
-          location: cityName,
-        });
-
-        // 충전 후: 배터리 80%로 회복, 위치 업데이트
-        currentBattery = CHARGE_TARGET;
-        travelledKm = chargeAtKm;
       }
-
-      // 최종 도착 배터리
-      const kmLeft = totalKm - travelledKm;
-      remainingBattery = Math.max(0, currentBattery - kmLeft / KM_PER_PERCENT);
 
       timeline.push({ type: "arrival", battery: remainingBattery, location: destination });
       setChargingTimeline(timeline);
