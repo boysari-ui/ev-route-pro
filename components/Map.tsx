@@ -98,7 +98,9 @@ export default function Map() {
   const [stations, setStations] = useState<ChargePoint[]>([]);
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
- 
+  const [showMap, setShowMap] = useState(false);
+
+
   const fetchStations = async (lat: number, lng: number): Promise<ChargePoint[]> => {
     const distanceKm = 50;
     const res = await fetch(`/api/stations?lat=${lat}&lng=${lng}&distance=${distanceKm}`);
@@ -332,7 +334,7 @@ if (scored.length > 0) {
 // 🔽 그 다음에 상태 저장
 setStations(allStations);
 setDirections(res);
-
+setShowMap(true);
 
     const totalKm = routeLegs.reduce((sum: number, leg: any) => sum + (leg.distance?.value || 0), 0) / 1000;
     setResultText(
@@ -504,6 +506,9 @@ setChargingTimeline(timeline);
     ))}
   </div>
 )}
+
+{showMap && (
+
       <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={10}>
         {directions && <DirectionsRenderer directions={directions} />}
        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-md text-sm z-20">
@@ -611,7 +616,7 @@ setChargingTimeline(timeline);
     </div>
   </InfoWindow>
 )}
-              </GoogleMap>
+              </GoogleMap>)}
             </div>
           );
         }
