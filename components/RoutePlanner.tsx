@@ -207,7 +207,7 @@ export default function RoutePlanner({
           {/* EV Model select */}
           <div className="flex-1 flex flex-col gap-2">
             <select
-              className="w-full bg-gray-100 text-black px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full bg-gray-100 text-gray-900 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               value={isCustomModel ? "__custom__" : (selectedModel?.name || "")}
               onChange={e => handleModelChange(e.target.value)}
             >

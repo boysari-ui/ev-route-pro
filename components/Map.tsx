@@ -449,7 +449,7 @@ export default function Map() {
                     position={{ lat: selectedStation.lat, lng: selectedStation.lng }}
                     onCloseClick={() => setSelectedStation(null)}
                   >
-                    <div>
+                    <div className="text-gray-900 text-sm max-w-55">
                       <strong>{selectedStation.title}</strong>
                       <p>Type: {selectedStation.type}</p>
                       <p>Speed: {selectedStation.speed}</p>
@@ -522,7 +522,7 @@ export default function Map() {
                     if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
                     window.open(url, "_blank");
                   }}
-                  className="bg-white shadow-lg px-4 py-2 rounded-full flex items-center gap-2 font-medium hover:scale-105 transition"
+                  className="bg-white text-gray-900 shadow-lg px-4 py-2 rounded-full flex items-center gap-2 font-medium hover:scale-105 transition"
                 >📍 Open in Maps</button>
               </div>
             </div>
