@@ -215,7 +215,7 @@ export default function RoutePlanner({
               {EV_MODELS.map((m, idx) => (
                 <option key={idx} value={m.name}>{m.name}</option>
               ))}
-              <option value="__custom__">✏️ Other / Custom model</option>
+              <option value="__custom__">✏️ Other</option>
             </select>
 
             {/* Custom model 입력 패널 */}
@@ -223,10 +223,10 @@ export default function RoutePlanner({
               <div className="bg-gray-50 border border-emerald-200 rounded-lg p-3 flex flex-col gap-2">
                 <div className="text-xs text-gray-500 font-semibold">Enter your EV details</div>
                 <input
-                  placeholder="Model name (e.g. BYD Atto 3)"
+                  placeholder="Model name (eg BYD Atto 3)"
                   value={customName}
                   onChange={e => setCustomName(e.target.value)}
-                  className="bg-white text-black px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="bg-white text-gray-900 px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 />
                 <div className="flex gap-2">
                   <div className="flex-1">

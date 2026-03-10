@@ -509,9 +509,9 @@ export default function Map() {
 
               <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
                 <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
-                  className="bg-white shadow-md w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold hover:scale-105 transition">+</button>
+                  className="bg-white text-gray-900 shadow-md w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold hover:scale-105 transition">+</button>
                 <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) - 1)}
-                  className="bg-white shadow-md w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold hover:scale-105 transition">−</button>
+                  className="bg-white text-gray-900 shadow-md w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold hover:scale-105 transition">−</button>
               </div>
 
               <div className="absolute top-40 left-3 z-20">
