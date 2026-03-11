@@ -495,7 +495,7 @@ export default function Map() {
               pointerEvents: "all",
             }} />
           )}
-          <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8">
+          <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8" style={{ display: modalOpen ? "none" : "block" }}>
             <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <GoogleMap
                 mapContainerStyle={containerStyle}
