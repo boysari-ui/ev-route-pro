@@ -417,7 +417,7 @@ export default function Map() {
         <AuthBar />
       </div>
       <div style={{ height: 52 }} />
-    <div>
+
       {/* 로딩 오버레이 */}
       {isLoading && (
         <div style={{
