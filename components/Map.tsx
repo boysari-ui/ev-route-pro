@@ -1,5 +1,7 @@
 "use client";
 import AuthBar from "./AuthBar";
+import AuthModal from "./AuthModal";
+import ProUpgradeModal from "./ProUpgradeModal";
 import ChargingTimeline from "./ChargingTimeline";
 import RoutePlanner from "./RoutePlanner";
 import StationMarkers from "./StationMarkers";
@@ -81,6 +83,14 @@ export default function Map() {
   const [stops, setStops] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
+  const [showPro, setShowPro] = useState(false);
+
+  const openAuth = (mode: "signin" | "signup") => { setAuthMode(mode); setShowAuth(true); setModalOpen(true); };
+  const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
+  const openPro = () => { setShowPro(true); setModalOpen(true); };
+  const closePro = () => { setShowPro(false); setModalOpen(false); };
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
     new Set(["Selected Stop", "Supercharger", "Standard"])
   );
@@ -402,6 +412,9 @@ export default function Map() {
 
   return (
     <div style={{ position: "relative", zIndex: 0 }}>
+      {/* 모달 - 블러 영향 안 받도록 최상위에 */}
+      {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
+      {showPro && <ProUpgradeModal onClose={closePro} />}
       {/* 상단 헤더 */}
       <div style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
@@ -415,7 +428,7 @@ export default function Map() {
           <span style={{ fontSize: 22 }}>⚡</span>
           <span style={{ color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" }} onClick={() => { localStorage.removeItem("ev_on_map"); window.location.reload(); }}>EV Route Pro</span>
         </div>
-        <AuthBar onModalChange={setModalOpen} />
+        <AuthBar onOpenAuth={openAuth} onOpenPro={openPro} />
       </div>
       <div style={{ height: 52 }} />
 
