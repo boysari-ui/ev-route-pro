@@ -80,6 +80,7 @@ export default function Map() {
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
     new Set(["Selected Stop", "Supercharger", "Standard"])
   );
@@ -403,7 +404,7 @@ export default function Map() {
     <div style={{ position: "relative", zIndex: 0 }}>
       {/* 상단 헤더 */}
       <div style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         background: "linear-gradient(135deg, #0d1117ee, #161b27ee)",
         backdropFilter: "blur(10px)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -414,7 +415,7 @@ export default function Map() {
           <span style={{ fontSize: 22 }}>⚡</span>
           <span style={{ color: "white", fontWeight: 800, fontSize: 16 }}>EV Route Pro</span>
         </div>
-        <AuthBar />
+        <AuthBar onModalChange={setModalOpen} />
       </div>
       <div style={{ height: 52 }} />
 
@@ -486,6 +487,14 @@ export default function Map() {
             />
           </div>
 
+          {/* 모달 열릴 때 지도 위 오버레이 */}
+          {modalOpen && (
+            <div style={{
+              position: "fixed", inset: 0, zIndex: 99998,
+              background: "transparent",
+              pointerEvents: "all",
+            }} />
+          )}
           <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8">
             <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <GoogleMap

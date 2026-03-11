@@ -5,31 +5,56 @@ import { logOut } from "./firebase";
 import AuthModal from "./AuthModal";
 import ProUpgradeModal from "./ProUpgradeModal";
 
-export default function AuthBar() {
+interface Props {
+  onModalChange?: (isOpen: boolean) => void;
+}
+
+export default function AuthBar({ onModalChange }: Props) {
   const { user, isPro, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
   const [showPro, setShowPro] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
+  const openAuth = (mode: "signin" | "signup") => {
+    setAuthMode(mode);
+    setShowAuth(true);
+    onModalChange?.(true);
+  };
+
+  const closeAuth = () => {
+    setShowAuth(false);
+    onModalChange?.(false);
+  };
+
+  const openPro = () => {
+    setShowPro(true);
+    onModalChange?.(true);
+  };
+
+  const closePro = () => {
+    setShowPro(false);
+    onModalChange?.(false);
+  };
+
   if (loading) return <div style={{ width: 120, height: 32 }} />;
 
   if (!user) return (
     <>
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={() => { setAuthMode("signin"); setShowAuth(true); }} style={{
+        <button onClick={() => openAuth("signin")} style={{
           padding: "7px 14px", borderRadius: 8,
           border: "1px solid rgba(255,255,255,0.2)",
           background: "transparent", color: "white",
           fontSize: 13, fontWeight: 600, cursor: "pointer",
         }}>Log in</button>
-        <button onClick={() => { setAuthMode("signup"); setShowAuth(true); }} style={{
+        <button onClick={() => openAuth("signup")} style={{
           padding: "7px 14px", borderRadius: 8, border: "none",
           background: "linear-gradient(135deg, #059669, #10b981)",
           color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer",
         }}>Sign up free</button>
       </div>
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} defaultMode={authMode} />}
+      {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
     </>
   );
 
@@ -43,14 +68,13 @@ export default function AuthBar() {
             fontSize: 11, fontWeight: 800, color: "#1a1a1a",
           }}>⚡ PRO</div>
         ) : (
-          <button onClick={() => setShowPro(true)} style={{
+          <button onClick={openPro} style={{
             padding: "7px 14px", borderRadius: 8, border: "none",
             background: "linear-gradient(135deg, #059669, #10b981)",
             color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
           }}>Upgrade to Pro</button>
         )}
 
-        {/* 유저 아바타 + 드롭다운 */}
         <div style={{ position: "relative" }}>
           <button onClick={() => setShowMenu(!showMenu)} style={{
             width: 32, height: 32, borderRadius: "50%",
@@ -66,7 +90,7 @@ export default function AuthBar() {
 
           {showMenu && (
             <div style={{
-              position: "absolute", top: 38, right: 0, zIndex: 1000,
+              position: "absolute", top: 38, right: 0, zIndex: 200,
               background: "#1e2433", border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 10, padding: 8, minWidth: 180,
               boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
@@ -75,7 +99,7 @@ export default function AuthBar() {
                 {user.email}
               </div>
               {!isPro && (
-                <button onClick={() => { setShowPro(true); setShowMenu(false); }} style={{
+                <button onClick={() => { openPro(); setShowMenu(false); }} style={{
                   width: "100%", padding: "8px 10px", background: "none", border: "none",
                   color: "#10b981", fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "left", borderRadius: 6,
                 }}>⚡ Upgrade to Pro</button>
@@ -89,7 +113,7 @@ export default function AuthBar() {
         </div>
       </div>
 
-      {showPro && <ProUpgradeModal onClose={() => setShowPro(false)} />}
+      {showPro && <ProUpgradeModal onClose={closePro} />}
     </>
   );
 }
