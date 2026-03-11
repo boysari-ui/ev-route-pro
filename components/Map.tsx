@@ -1,4 +1,5 @@
 "use client";
+import AuthBar from "./AuthBar";
 import ChargingTimeline from "./ChargingTimeline";
 import RoutePlanner from "./RoutePlanner";
 import StationMarkers from "./StationMarkers";
@@ -399,6 +400,23 @@ export default function Map() {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
+    <div>
+      {/* 상단 헤더 */}
+      <div style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
+        background: "linear-gradient(135deg, #0d1117ee, #161b27ee)",
+        backdropFilter: "blur(10px)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        padding: "10px 20px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 22 }}>⚡</span>
+          <span style={{ color: "white", fontWeight: 800, fontSize: 16 }}>EV Route Pro</span>
+        </div>
+        <AuthBar />
+      </div>
+      <div style={{ height: 52 }} />
     <div>
       {/* 로딩 오버레이 */}
       {isLoading && (
