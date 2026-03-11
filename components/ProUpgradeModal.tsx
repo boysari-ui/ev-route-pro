@@ -29,10 +29,10 @@ export default function ProUpgradeModal({ onClose }: Props) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
+      position: "fixed", inset: 0, zIndex: 999999,
       background: "rgba(0,0,0,0.7)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20, backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto",
+      padding: "20px", backdropFilter: "blur(6px)",
     }}>
       <div style={{
         background: "linear-gradient(160deg, #0d1117 0%, #161b27 100%)",
@@ -120,7 +120,7 @@ export default function ProUpgradeModal({ onClose }: Props) {
           {loading ? "Redirecting to checkout..." : "Start Pro — $4.99/month"}
         </button>
 
-        <div style={{ textAlign: "center", color: "#334155", fontSize: 11, marginTop: 12 }}>
+        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 12 }}>
           🔒 Secure payment by Stripe
         </div>
       </div>
