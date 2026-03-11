@@ -80,6 +80,7 @@ export default function Map() {
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
     new Set(["Selected Stop", "Supercharger", "Standard"])
   );
@@ -400,10 +401,10 @@ export default function Map() {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
       {/* 상단 헤더 */}
       <div style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         background: "linear-gradient(135deg, #0d1117ee, #161b27ee)",
         backdropFilter: "blur(10px)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -412,9 +413,9 @@ export default function Map() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 22 }}>⚡</span>
-          <span style={{ color: "white", fontWeight: 800, fontSize: 16 }}>EV Route Pro</span>
+          <span style={{ color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" }} onClick={() => { localStorage.removeItem("ev_on_map"); window.location.reload(); }}>EV Route Pro</span>
         </div>
-        <AuthBar />
+        <AuthBar onModalChange={setModalOpen} />
       </div>
       <div style={{ height: 52 }} />
 
@@ -448,8 +449,19 @@ export default function Map() {
         </div>
       )}
 
+      {/* 모달 열릴 때 전체 블러 오버레이 */}
+      {modalOpen && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 99998,
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          pointerEvents: "none",
+        }} />
+      )}
+
       {/* 배너 */}
-      <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center pb-10">
+      <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center pb-10" style={{ filter: modalOpen ? "blur(4px)" : "none", transition: "filter 0.2s" }}>
         <h1 className="text-3xl font-bold">⚡ EV Route Pro</h1>
         <p className="mt-2 text-lg">Smart EV trip planner for Australia</p>
         <p className="text-sm mt-1 text-green-100">Plan your drive. Optimize charging. Arrive stress-free.</p>
@@ -462,7 +474,7 @@ export default function Map() {
       </div>
 
       {/* 폼 */}
-      <div className="px-4 -mt-6 mb-4">
+      <div className="px-4 -mt-6 mb-4" style={{ filter: modalOpen ? "blur(4px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto" }}>
         <RoutePlanner
           origin={origin} setOrigin={setOrigin}
           destination={destination} setDestination={setDestination}
@@ -486,7 +498,17 @@ export default function Map() {
             />
           </div>
 
-          <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8">
+          {/* 모달 열릴 때 블러 오버레이 */}
+          {modalOpen && (
+            <div style={{
+              position: "fixed", inset: 0, zIndex: 99998,
+              background: "rgba(0,0,0,0.5)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              pointerEvents: "none",
+            }} />
+          )}
+          <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8" style={{ display: modalOpen ? "none" : "block" }}>
             <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <GoogleMap
                 mapContainerStyle={containerStyle}
