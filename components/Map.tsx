@@ -73,6 +73,9 @@ export default function Map() {
   const [selectedModel, setSelectedModel] = useState<EVModel | null>(null);
   const [startBattery, setStartBattery] = useState<number>(80);
   const [stations, setStations] = useState<ChargePoint[]>([]);
+  // 경로 재계산용 저장
+  const [routeStepCoords, setRouteStepCoords] = useState<{ km: number; lat: number; lng: number }[]>([]);
+  const [routeTotalKm, setRouteTotalKm] = useState<number>(0);
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -136,10 +139,46 @@ export default function Map() {
     return (kWhNeeded / chargePower) * 60;
   };
 
+  // 충전 스탑 변경 후 도착 배터리 재계산
+  const recalcArrivalBattery = (newTimeline: TimelineItem[]) => {
+    if (!selectedModel || routeTotalKm === 0) return newTimeline;
+    const { batteryKWh, whPerKm } = selectedModel;
+    const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
+    const CHARGE_TARGET = 100;
+
+    // 각 충전 스탑의 km 위치 구하기
+    const getKmForCoord = (lat: number, lng: number) => {
+      if (!lat || !lng) return routeTotalKm;
+      return routeStepCoords.reduce((best, pt) => {
+        const d = computeDistanceKm(lat, lng, pt.lat, pt.lng);
+        return d < computeDistanceKm(lat, lng, best.lat, best.lng) ? pt : best;
+      }, routeStepCoords[0] || { km: 0, lat: 0, lng: 0 }).km;
+    };
+
+    let battery = startBattery;
+    let lastKm = 0;
+    const updated = newTimeline.map(item => {
+      if (item.type === "start") return item;
+      const itemKm = item.lat && item.lng ? getKmForCoord(item.lat, item.lng) : routeTotalKm;
+      const kmDriven = itemKm - lastKm;
+      battery = Math.max(0, battery - kmDriven / KM_PER_PERCENT);
+      const updatedItem = { ...item, battery: parseFloat(battery.toFixed(1)) };
+      if (item.type === "charge") {
+        battery = CHARGE_TARGET;
+        lastKm = itemKm;
+      }
+      return updatedItem;
+    });
+    return updated;
+  };
+
   const handleRemoveStop = (item: TimelineItem) => {
     if (!item.stopId) return;
     setStations(prev => prev.map(s => s.id === item.stopId ? { ...s, isUsedAsWaypoint: false } : s));
-    setChargingTimeline(prev => prev.filter(i => i.stopId !== item.stopId));
+    setChargingTimeline(prev => {
+      const filtered = prev.filter(i => i.stopId !== item.stopId);
+      return recalcArrivalBattery(filtered);
+    });
   };
 
   const handleRouteCalculation = async () => {
@@ -194,6 +233,8 @@ export default function Map() {
         }
       }
       const totalKm = cumKm;
+      setRouteStepCoords(stepCoords);
+      setRouteTotalKm(totalKm);
 
       let currentBattery = startBattery;
       let travelledKm = 0;
@@ -449,59 +490,71 @@ export default function Map() {
                     position={{ lat: selectedStation.lat, lng: selectedStation.lng }}
                     onCloseClick={() => setSelectedStation(null)}
                   >
-                    <div className="text-gray-900 text-sm max-w-55">
-                      <strong>{selectedStation.title}</strong>
-                      <p>Type: {selectedStation.type}</p>
-                      <p>Speed: {selectedStation.speed}</p>
-                      <p>Cost: {selectedStation.cost}</p>
-                      <p>Address: {selectedStation.address}</p>
+                    <div style={{ minWidth: 220, maxWidth: 280, fontSize: 14, lineHeight: 1.6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{selectedStation.title}</div>
+                      <div style={{ color: "#444", marginBottom: 2 }}>🔌 {selectedStation.type}</div>
+                      <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>
+                      <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>
+                      <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>
                       {selectedStation.batteryAfterReach !== undefined && (
-                        <p>Battery on Arrival: {selectedStation.batteryAfterReach.toFixed(1)}%</p>
+                        <div style={{ color: "#333", marginBottom: 2 }}>
+                          🔋 Arrival: <strong>{selectedStation.batteryAfterReach.toFixed(1)}%</strong>
+                        </div>
                       )}
                       {selectedStation.estimatedChargeTime !== undefined && (
-                        <p>Estimated Charge Time: {selectedStation.estimatedChargeTime.toFixed(0)} min</p>
+                        <div style={{ color: "#333", marginBottom: 10 }}>
+                          ⏱ Charge to 100%: <strong>{selectedStation.estimatedChargeTime.toFixed(0)} min</strong>
+                        </div>
                       )}
-                      <div className="flex gap-2 mt-3">
-                        {!selectedStation.isUsedAsWaypoint ? (
-                          <button className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition"
-                            onClick={() => {
-                              // 같은 위치의 스탑이 이미 트립플랜에 있으면 추가 안 함
-                              const alreadyInTimeline = chargingTimeline.some(i =>
-                                i.type === "charge" && i.lat === selectedStation.lat && i.lng === selectedStation.lng
-                              );
-                              if (alreadyInTimeline) return;
-                              const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: true } : s);
-                              setStations(u);
-                              setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
-                              setChargingTimeline(prev => {
-                                const arrivalIdx = prev.findIndex(i => i.type === "arrival");
-                                const newStop: TimelineItem = {
-                                  type: "charge",
-                                  battery: selectedStation.batteryAfterReach ?? 20,
-                                  location: [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
-                                  stationType: selectedStation.type === "Supercharger" ? "Supercharger" : "Standard",
-                                  estimatedChargeTime: selectedStation.estimatedChargeTime,
-                                  stopId: selectedStation.id,
-                                  lat: selectedStation.lat,
-                                  lng: selectedStation.lng,
-                                };
-                                if (arrivalIdx === -1) return [...prev, newStop];
-                                const next = [...prev]; next.splice(arrivalIdx, 0, newStop); return next;
-                              });
-                            }}>Add as Charging stop</button>
-                        ) : (
-                          <button className="bg-gray-300 text-black px-3 py-2 rounded-lg text-sm hover:bg-gray-400 transition"
-                            onClick={() => {
-                              const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
-                              setStations(u);
-                              setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
-                              // stopId 또는 같은 위치로 제거
-                              setChargingTimeline(prev => prev.filter(i =>
-                                !(i.stopId === selectedStation.id || (i.lat === selectedStation.lat && i.lng === selectedStation.lng))
-                              ));
-                            }}>Remove Charging stop</button>
-                        )}
-                      </div>
+                      {!selectedStation.isUsedAsWaypoint ? (
+                        <button
+                          style={{
+                            width: "100%", padding: "10px 12px", borderRadius: 10,
+                            background: "#059669", color: "white", border: "none",
+                            fontSize: 14, fontWeight: 700, cursor: "pointer",
+                          }}
+                          onClick={() => {
+                            const alreadyInTimeline = chargingTimeline.some(i =>
+                              i.type === "charge" && i.lat === selectedStation.lat && i.lng === selectedStation.lng
+                            );
+                            if (alreadyInTimeline) return;
+                            const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: true } : s);
+                            setStations(u);
+                            setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
+                            setChargingTimeline(prev => {
+                              const arrivalIdx = prev.findIndex(i => i.type === "arrival");
+                              const newStop: TimelineItem = {
+                                type: "charge",
+                                battery: selectedStation.batteryAfterReach ?? 20,
+                                location: [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
+                                stationType: selectedStation.type === "Supercharger" ? "Supercharger" : "Standard",
+                                estimatedChargeTime: selectedStation.estimatedChargeTime,
+                                stopId: selectedStation.id,
+                                lat: selectedStation.lat,
+                                lng: selectedStation.lng,
+                              };
+                              if (arrivalIdx === -1) return recalcArrivalBattery([...prev, newStop]);
+                              const next = [...prev]; next.splice(arrivalIdx, 0, newStop); return recalcArrivalBattery(next);
+                            });
+                          }}
+                        >+ Add as Charging Stop</button>
+                      ) : (
+                        <button
+                          style={{
+                            width: "100%", padding: "10px 12px", borderRadius: 10,
+                            background: "#e5e7eb", color: "#374151", border: "none",
+                            fontSize: 14, fontWeight: 700, cursor: "pointer",
+                          }}
+                          onClick={() => {
+                            const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
+                            setStations(u);
+                            setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
+                            setChargingTimeline(prev => recalcArrivalBattery(prev.filter(i =>
+                              !(i.stopId === selectedStation.id || (i.lat === selectedStation.lat && i.lng === selectedStation.lng))
+                            )));
+                          }}
+                        >− Remove Charging Stop</button>
+                      )}
                     </div>
                   </InfoWindow>
                 )}
@@ -509,12 +562,12 @@ export default function Map() {
 
               <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
                 <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
-                  className="bg-white text-gray-900 shadow-md w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold hover:scale-105 transition">+</button>
+                  style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                 <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) - 1)}
-                  className="bg-white text-gray-900 shadow-md w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold hover:scale-105 transition">−</button>
+                  style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
               </div>
 
-              <div className="absolute top-40 left-3 z-20">
+              <div className="absolute top-44 left-3 z-20">
                 <button
                   onClick={() => {
                     const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
@@ -522,7 +575,7 @@ export default function Map() {
                     if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
                     window.open(url, "_blank");
                   }}
-                  className="bg-white text-gray-900 shadow-lg px-4 py-2 rounded-full flex items-center gap-2 font-medium hover:scale-105 transition"
+                  style={{ background: "white", borderRadius: 99, border: "none", cursor: "pointer", padding: "10px 18px", fontSize: 14, fontWeight: 600, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 6 }}
                 >📍 Open in Maps</button>
               </div>
             </div>
