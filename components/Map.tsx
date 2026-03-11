@@ -400,7 +400,7 @@ export default function Map() {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
       {/* 상단 헤더 */}
       <div style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
