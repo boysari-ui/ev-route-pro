@@ -29,7 +29,7 @@ export default function ProUpgradeModal({ onClose }: Props) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
+      position: "fixed", inset: 0, zIndex: 99999,
       background: "rgba(0,0,0,0.7)",
       display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto",
       padding: "20px", backdropFilter: "blur(6px)",
