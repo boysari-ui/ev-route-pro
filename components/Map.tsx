@@ -419,6 +419,9 @@ export default function Map() {
       </div>
       <div style={{ height: 52 }} />
 
+      {/* 콘텐츠 블러 wrapper (헤더 제외) */}
+      <div style={{ filter: modalOpen ? "blur(5px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto" }}>
+
       {/* 로딩 오버레이 */}
       {isLoading && (
         <div style={{
@@ -449,19 +452,8 @@ export default function Map() {
         </div>
       )}
 
-      {/* 모달 열릴 때 전체 블러 오버레이 */}
-      {modalOpen && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 99998,
-          background: "rgba(0,0,0,0.6)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          pointerEvents: "none",
-        }} />
-      )}
-
       {/* 배너 */}
-      <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center pb-10" style={{ filter: modalOpen ? "blur(4px)" : "none", transition: "filter 0.2s" }}>
+      <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center pb-10">
         <h1 className="text-3xl font-bold">⚡ EV Route Pro</h1>
         <p className="mt-2 text-lg">Smart EV trip planner for Australia</p>
         <p className="text-sm mt-1 text-green-100">Plan your drive. Optimize charging. Arrive stress-free.</p>
@@ -474,7 +466,7 @@ export default function Map() {
       </div>
 
       {/* 폼 */}
-      <div className="px-4 -mt-6 mb-4" style={{ filter: modalOpen ? "blur(4px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto" }}>
+      <div className="px-4 -mt-6 mb-4">
         <RoutePlanner
           origin={origin} setOrigin={setOrigin}
           destination={destination} setDestination={setDestination}
@@ -498,16 +490,7 @@ export default function Map() {
             />
           </div>
 
-          {/* 모달 열릴 때 블러 오버레이 */}
-          {modalOpen && (
-            <div style={{
-              position: "fixed", inset: 0, zIndex: 99998,
-              background: "rgba(0,0,0,0.5)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-              pointerEvents: "none",
-            }} />
-          )}
+
           <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8" style={{ display: modalOpen ? "none" : "block" }}>
             <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <GoogleMap
@@ -622,6 +605,7 @@ export default function Map() {
           </div>
         </>
       )}
+      </div> {/* 블러 wrapper 끝 */}
     </div>
   );
 }
