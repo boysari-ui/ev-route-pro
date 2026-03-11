@@ -50,9 +50,9 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 999999,
+      position: "fixed", inset: 0, zIndex: 9999,
       background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
-      display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "20px 20px", overflowY: "auto",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{
         background: "linear-gradient(160deg, #0d1117, #161b27)",
