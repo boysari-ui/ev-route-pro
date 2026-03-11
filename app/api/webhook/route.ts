@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID!,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL!,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY!
-        .replace(/\\n/g, "\n")
-        .replace(/^"|"$/g, ""),
-    }),
-  });
-}
-
-const db = getFirestore();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
 
 export async function POST(req: NextRequest) {
@@ -29,28 +14,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const uid = session.metadata?.uid;
-      if (uid) {
-        await db.collection("users").doc(uid).set({
-          isPro: true,
-          stripeCustomerId: session.customer,
-          proSince: new Date().toISOString(),
-        }, { merge: true });
-      }
-      break;
-    }
-    case "customer.subscription.deleted": {
-      const sub = event.data.object as Stripe.Subscription;
-      const snapshot = await db.collection("users")
-        .where("stripeCustomerId", "==", sub.customer).limit(1).get();
-      if (!snapshot.empty) {
-        await snapshot.docs[0].ref.update({ isPro: false });
-      }
-      break;
-    }
+  // 결제 성공 로그 (Firebase는 나중에 추가)
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    console.log("✅ Payment success:", session.customer_email);
   }
 
   return NextResponse.json({ received: true });
