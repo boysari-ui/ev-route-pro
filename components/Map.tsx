@@ -8,7 +8,7 @@ import RoutePlanner from "./RoutePlanner";
 import StationMarkers from "./StationMarkers";
 import { EVModel } from "../types/ev";
 import { EV_MODELS } from "../data/evModels";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChargerFilters from "./ChargerFilters";
 import {
   GoogleMap,
@@ -93,6 +93,29 @@ export default function Map() {
   const [copySuccess, setCopySuccess] = useState(false);
 
   const openAuth = (mode: "signin" | "signup") => { setAuthMode(mode); setShowAuth(true); setModalOpen(true); };
+
+  // 공유 URL 파라미터로 경로 자동 로드
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromParam = params.get("from");
+    const toParam = params.get("to");
+    const modelParam = params.get("model");
+    const batteryParam = params.get("battery");
+    if (fromParam && toParam) {
+      setOrigin(fromParam);
+      setDestination(toParam);
+      if (batteryParam) setStartBattery(Number(batteryParam));
+      if (modelParam) {
+        const found = EV_MODELS.find(m => m.name === modelParam);
+        if (found) setSelectedModel(found);
+      }
+      setTimeout(() => {
+        document.getElementById("auto-plan-trigger")?.click();
+      }, 800);
+    }
+  }, []);
+
+  // URL 파라미터로 공유된 경로 자동 로드
   const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
   const openPro = () => { setShowPro(true); setModalOpen(true); };
   const closePro = () => { setShowPro(false); setModalOpen(false); };
@@ -416,7 +439,7 @@ export default function Map() {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <div style={{ position: "relative", zIndex: 0 }}>
+    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to bottom right, #059669, #10b981)" }}>
       {/* 모달 - 블러 영향 안 받도록 최상위에 */}
       {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
       {showPro && <ProUpgradeModal onClose={closePro} />}
@@ -587,10 +610,12 @@ export default function Map() {
                       𝕏 Share on X
                     </button>
 
-                    {/* Facebook */}
+                    {/* Instagram */}
                     <button
                       onClick={() => {
-                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, "_blank");
+                        const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
+                        navigator.clipboard.writeText(url);
+                        window.open("https://www.instagram.com/", "_blank");
                         setShowShareMenu(false);
                       }}
                       style={{
@@ -600,7 +625,7 @@ export default function Map() {
                         textAlign: "left", display: "flex", alignItems: "center", gap: 8,
                       }}
                     >
-                      📘 Share on Facebook
+                      📸 Instagram (링크 복사됨)
                     </button>
                   </div>
                 )}
