@@ -18,6 +18,7 @@ import {
 } from "@react-google-maps/api";
 
 const containerStyle = { width: "100%", height: "calc(100vh - 180px)" };
+const LIBRARIES: ["places"] = ["places"];
 const center = { lat: -37.8136, lng: 144.9631 };
 
 interface NearestSupercharger {
@@ -65,7 +66,7 @@ function computeDistanceKm(lat1: number, lng1: number, lat2: number, lng2: numbe
 export default function Map() {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: ["places"] as any,
+    libraries: LIBRARIES,
   });
 
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
@@ -94,7 +95,9 @@ export default function Map() {
 
   const openAuth = (mode: "signin" | "signup") => { setAuthMode(mode); setShowAuth(true); setModalOpen(true); };
 
-  // 공유 URL 파라미터로 경로 자동 로드
+  // 공유 URL 파라미터로 경로 자동 로드 (isLoaded 후 실행)
+  const [pendingSharedRoute, setPendingSharedRoute] = useState<{from: string, to: string} | null>(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromParam = params.get("from");
@@ -109,11 +112,19 @@ export default function Map() {
         const found = EV_MODELS.find(m => m.name === modelParam);
         if (found) setSelectedModel(found);
       }
-      setTimeout(() => {
-        document.getElementById("auto-plan-trigger")?.click();
-      }, 800);
+      setPendingSharedRoute({ from: fromParam, to: toParam });
     }
   }, []);
+
+  // isLoaded 되면 자동으로 경로 계산
+  useEffect(() => {
+    if (isLoaded && pendingSharedRoute) {
+      setTimeout(() => {
+        handleRouteCalculation();
+        setPendingSharedRoute(null);
+      }, 500);
+    }
+  }, [isLoaded, pendingSharedRoute]);
 
   // URL 파라미터로 공유된 경로 자동 로드
   const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
@@ -610,12 +621,11 @@ export default function Map() {
                       𝕏 Share on X
                     </button>
 
-                    {/* Instagram */}
+                    {/* Facebook */}
                     <button
                       onClick={() => {
                         const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
-                        navigator.clipboard.writeText(url);
-                        window.open("https://www.instagram.com/", "_blank");
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank");
                         setShowShareMenu(false);
                       }}
                       style={{
@@ -625,7 +635,7 @@ export default function Map() {
                         textAlign: "left", display: "flex", alignItems: "center", gap: 8,
                       }}
                     >
-                      📸 Instagram (링크 복사됨)
+                      📘 Share on Facebook
                     </button>
                   </div>
                 )}
