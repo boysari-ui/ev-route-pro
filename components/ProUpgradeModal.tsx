@@ -117,7 +117,7 @@ export default function ProUpgradeModal({ onClose }: Props) {
             transition: "all 0.2s ease",
           }}
         >
-          {loading ? "Redirecting to checkout..." : "Start Pro — $4.99/month"}
+          {loading ? "Redirecting to checkout..." : "Start Pro Plus — $4.99/month"}
         </button>
 
         <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 12 }}>

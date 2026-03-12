@@ -2,6 +2,7 @@
 import AuthBar from "./AuthBar";
 import AuthModal from "./AuthModal";
 import ProUpgradeModal from "./ProUpgradeModal";
+import { useAuth } from "./useAuth";
 import ChargingTimeline from "./ChargingTimeline";
 import RoutePlanner from "./RoutePlanner";
 import StationMarkers from "./StationMarkers";
@@ -86,6 +87,10 @@ export default function Map() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
   const [showPro, setShowPro] = useState(false);
+
+  const { user, isPro } = useAuth();
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const openAuth = (mode: "signin" | "signup") => { setAuthMode(mode); setShowAuth(true); setModalOpen(true); };
   const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
@@ -495,6 +500,114 @@ export default function Map() {
       {/* 트립플랜 + 지도 */}
       {routePlanned && (
         <>
+          {/* 공유 / 저장 버튼 바 */}
+          <div className="px-4 mb-3">
+            <div style={{
+              display: "flex", gap: 10, alignItems: "center",
+              background: "white", borderRadius: 14, padding: "10px 16px",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#374151", flex: 1 }}>
+                {origin} → {destination}
+              </span>
+
+              {/* 저장 버튼 */}
+              <button
+                onClick={() => {
+                  if (!user) { openAuth("signup"); return; }
+                  if (!isPro) { openPro(); return; }
+                  alert("Route saved! ✅");
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "7px 14px", borderRadius: 8, border: "none",
+                  background: isPro ? "linear-gradient(135deg, #f59e0b, #fbbf24)" : "#f1f5f9",
+                  color: isPro ? "#1a1a1a" : "#64748b",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {isPro ? "⭐ Save Route" : "🔒 Save (Pro Plus)"}
+              </button>
+
+              {/* 공유 버튼 */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowShareMenu(!showShareMenu)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "7px 14px", borderRadius: 8, border: "none",
+                    background: "linear-gradient(135deg, #059669, #10b981)",
+                    color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  🔗 Share
+                </button>
+
+                {showShareMenu && (
+                  <div style={{
+                    position: "absolute", top: 42, right: 0, zIndex: 300,
+                    background: "white", borderRadius: 12, padding: 8,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                    minWidth: 180, border: "1px solid #f1f5f9",
+                  }}>
+                    {/* 링크 복사 */}
+                    <button
+                      onClick={() => {
+                        const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
+                        navigator.clipboard.writeText(url);
+                        setCopySuccess(true);
+                        setTimeout(() => { setCopySuccess(false); setShowShareMenu(false); }, 2000);
+                      }}
+                      style={{
+                        width: "100%", padding: "9px 12px", background: copySuccess ? "#f0fdf4" : "none",
+                        border: "none", borderRadius: 8, cursor: "pointer",
+                        fontSize: 13, fontWeight: 600, color: copySuccess ? "#059669" : "#374151",
+                        textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                      }}
+                    >
+                      {copySuccess ? "✅ Copied!" : "🔗 Copy link"}
+                    </button>
+
+                    {/* Twitter */}
+                    <button
+                      onClick={() => {
+                        const text = `Planning my EV trip from ${origin} to ${destination} with EV Route Pro! ⚡`;
+                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`, "_blank");
+                        setShowShareMenu(false);
+                      }}
+                      style={{
+                        width: "100%", padding: "9px 12px", background: "none",
+                        border: "none", borderRadius: 8, cursor: "pointer",
+                        fontSize: 13, fontWeight: 600, color: "#374151",
+                        textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                      }}
+                    >
+                      𝕏 Share on X
+                    </button>
+
+                    {/* Facebook */}
+                    <button
+                      onClick={() => {
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, "_blank");
+                        setShowShareMenu(false);
+                      }}
+                      style={{
+                        width: "100%", padding: "9px 12px", background: "none",
+                        border: "none", borderRadius: 8, cursor: "pointer",
+                        fontSize: 13, fontWeight: 600, color: "#374151",
+                        textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                      }}
+                    >
+                      📘 Share on Facebook
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="px-4 mb-4">
             <ChargingTimeline
               items={chargingTimeline}

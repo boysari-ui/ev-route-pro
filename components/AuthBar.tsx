@@ -37,13 +37,13 @@ export default function AuthBar({ onOpenAuth, onOpenPro }: Props) {
           background: "linear-gradient(135deg, #f59e0b, #fbbf24)",
           borderRadius: 8, padding: "4px 10px",
           fontSize: 11, fontWeight: 800, color: "#1a1a1a",
-        }}>⚡ PRO</div>
+        }}>⚡ PRO+</div>
       ) : (
         <button onClick={onOpenPro} style={{
           padding: "7px 14px", borderRadius: 8, border: "none",
           background: "linear-gradient(135deg, #059669, #10b981)",
           color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
-        }}>Upgrade to Pro</button>
+        }}>Upgrade to Pro Plus</button>
       )}
 
       <div style={{ position: "relative" }}>
@@ -73,7 +73,7 @@ export default function AuthBar({ onOpenAuth, onOpenPro }: Props) {
               <button onClick={() => { onOpenPro(); setShowMenu(false); }} style={{
                 width: "100%", padding: "8px 10px", background: "none", border: "none",
                 color: "#10b981", fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "left", borderRadius: 6,
-              }}>⚡ Upgrade to Pro</button>
+              }}>⚡ Upgrade to Pro Plus</button>
             )}
             <button onClick={() => { logOut(); setShowMenu(false); }} style={{
               width: "100%", padding: "8px 10px", background: "none", border: "none",
