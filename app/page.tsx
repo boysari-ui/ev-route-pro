@@ -119,7 +119,7 @@ export default function Home() {
         transition:"box-shadow 0.3s",
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={36} height={36}
+          <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={52} height={52}
             style={{ borderRadius:9, objectFit:"cover", boxShadow:"0 2px 8px rgba(0,0,0,0.2)" }} />
           <div style={{ lineHeight:1 }}>
             <div style={{ fontWeight:800, fontSize:"1.05rem", letterSpacing:"-0.02em", color:"white" }}>EV Route Pro</div>
@@ -148,7 +148,7 @@ export default function Home() {
           {/* Left */}
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:28 }}>
-              <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={56} height={56}
+              <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={80} height={80}
                 style={{ borderRadius:14, objectFit:"cover", boxShadow:"0 8px 24px rgba(0,0,0,0.25)" }} />
               <div>
                 <div style={{ color:"white", fontWeight:900, fontSize:"clamp(1.1rem,3vw,1.5rem)", letterSpacing:"-0.02em", lineHeight:1 }}>EV Route Pro</div>
@@ -323,7 +323,7 @@ export default function Home() {
               { icon:"⚡", bg:GREEN_LIGHT, title:"Smart charging stops",      desc:"Automatically find the best charging stations along your route based on speed, availability, and your battery level." },
               { icon:"🔋", bg:GREEN_LIGHT, title:"Battery arrival prediction", desc:"Know how much battery you'll have at each stop. No guesswork, no range anxiety." },
               { icon:"✏️", bg:GREEN_LIGHT, title:"Edit charging stops",        desc:"Add or remove charging stations directly on the map. Customise your route exactly the way you want it." },
-              { icon:"🗺️", bg:"#eff6ff",  title:"Google Maps navigation",     desc:"Open your full route instantly in Google Maps. Navigate using the app you already trust — one tap, ready to go." },
+              { icon:"🗺️", bg:GREEN_LIGHT,  title:"Google Maps navigation",     desc:"Open your full route instantly in Google Maps. Navigate using the app you already trust — one tap, ready to go." },
             ].map((f,i)=>(
               <div key={f.title} className="rv" style={{ background:"white", border:`1.5px solid ${GRAY200}`, borderRadius:16, padding:24, display:"flex", gap:16, transitionDelay:`${i*0.08}s` }}>
                 <div style={{ width:44, height:44, borderRadius:11, background:f.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.2rem", flexShrink:0 }}>
@@ -388,7 +388,7 @@ export default function Home() {
       {/* ════ FOOTER ════ */}
       <footer className="footer-pad" style={{ background:"white", borderTop:`1px solid ${GRAY200}`, display:"flex", flexDirection:"column", alignItems:"center", gap:12, textAlign:"center" }}>
         <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-          <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={28} height={28} style={{ borderRadius:7, objectFit:"cover" }}/>
+          <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={48} height={48} style={{ borderRadius:7, objectFit:"cover" }}/>
           <span style={{ fontWeight:800, fontSize:"0.95rem", color:G1 }}>EV Route Pro</span>
         </div>
         <p style={{ fontSize:"0.8rem", color:GRAY400, maxWidth:480, lineHeight:1.6 }}>
