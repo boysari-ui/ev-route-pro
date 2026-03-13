@@ -70,11 +70,11 @@ export default function PWAInstallBanner() {
       {/* 텍스트 */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: "white", fontWeight: 700, fontSize: 15 }}>
-          Add EV Route Pro to Home Screen
+          Add EV Route Pro to Home screen
         </div>
         <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 2 }}>
           {isIOS
-            ? 'Tap Share → "Add to Home Screen"'
+            ? 'Tap Share → "Add to Home screen"'
             : "Install for faster access & offline use"}
         </div>
       </div>

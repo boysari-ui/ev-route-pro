@@ -64,10 +64,10 @@ function computeDistanceKm(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export default function Map() {
-const { isLoaded } = useLoadScript({
-  googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-  libraries: LIBRARIES,  // ← 고정 배열 사용
-});
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+    libraries: LIBRARIES,
+  });
 
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [chargingTimeline, setChargingTimeline] = useState<TimelineItem[]>([]);
@@ -78,7 +78,6 @@ const { isLoaded } = useLoadScript({
   const [selectedModel, setSelectedModel] = useState<EVModel | null>(null);
   const [startBattery, setStartBattery] = useState<number>(80);
   const [stations, setStations] = useState<ChargePoint[]>([]);
-  // 경로 재계산용 저장
   const [routeStepCoords, setRouteStepCoords] = useState<{ km: number; lat: number; lng: number }[]>([]);
   const [routeTotalKm, setRouteTotalKm] = useState<number>(0);
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
@@ -88,16 +87,22 @@ const { isLoaded } = useLoadScript({
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
   const [showPro, setShowPro] = useState(false);
+  const [pendingSharedRoute, setPendingSharedRoute] = useState<{from: string, to: string} | null>(null);
 
   const { user, isPro } = useAuth();
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
   const openAuth = (mode: "signin" | "signup") => { setAuthMode(mode); setShowAuth(true); setModalOpen(true); };
+  const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
+  const openPro = () => { setShowPro(true); setModalOpen(true); };
+  const closePro = () => { setShowPro(false); setModalOpen(false); };
 
-  // 공유 URL 파라미터로 경로 자동 로드 (isLoaded 후 실행)
-  const [pendingSharedRoute, setPendingSharedRoute] = useState<{from: string, to: string} | null>(null);
+  const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
+    new Set(["Selected Stop", "Supercharger", "Standard"])
+  );
 
+  // 공유 URL 파라미터 읽기
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromParam = params.get("from");
@@ -116,7 +121,7 @@ const { isLoaded } = useLoadScript({
     }
   }, []);
 
-  // isLoaded 되면 자동으로 경로 계산
+  // Maps 로드 완료 후 공유 경로 자동 계산
   useEffect(() => {
     if (isLoaded && pendingSharedRoute) {
       setTimeout(() => {
@@ -125,14 +130,6 @@ const { isLoaded } = useLoadScript({
       }, 500);
     }
   }, [isLoaded, pendingSharedRoute]);
-
-  // URL 파라미터로 공유된 경로 자동 로드
-  const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
-  const openPro = () => { setShowPro(true); setModalOpen(true); };
-  const closePro = () => { setShowPro(false); setModalOpen(false); };
-  const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
-    new Set(["Selected Stop", "Supercharger", "Standard"])
-  );
 
   const toggleType = (type: string) => {
     setVisibleTypes(prev => {
@@ -143,7 +140,6 @@ const { isLoaded } = useLoadScript({
     });
   };
 
-  // 지도에서 해당 위치로 이동
   const handleViewOnMap = (lat: number, lng: number) => {
     if (mapRef) {
       mapRef.panTo({ lat, lng });
@@ -190,14 +186,12 @@ const { isLoaded } = useLoadScript({
     return (kWhNeeded / chargePower) * 60;
   };
 
-  // 충전 스탑 변경 후 도착 배터리 재계산
   const recalcArrivalBattery = (newTimeline: TimelineItem[]) => {
     if (!selectedModel || routeTotalKm === 0) return newTimeline;
     const { batteryKWh, whPerKm } = selectedModel;
     const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
     const CHARGE_TARGET = 100;
 
-    // 각 충전 스탑의 km 위치 구하기
     const getKmForCoord = (lat: number, lng: number) => {
       if (!lat || !lng) return routeTotalKm;
       return routeStepCoords.reduce((best, pt) => {
@@ -450,322 +444,316 @@ const { isLoaded } = useLoadScript({
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to bottom right, #059669, #10b981)" }}>
-      {/* 모달 - 블러 영향 안 받도록 최상위에 */}
+    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to right, #059669, #22c55e)" }}>
+      {/* 모달 - 블러 밖 최상위 */}
       {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
       {showPro && <ProUpgradeModal onClose={closePro} />}
+
       {/* 상단 헤더 */}
       <div style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-        background: "linear-gradient(135deg, #0d1117ee, #161b27ee)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(10,15,35,0.97)",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
         padding: "10px 20px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 22 }}>⚡</span>
-          <span style={{ color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" }} onClick={() => { localStorage.removeItem("ev_on_map"); window.location.reload(); }}>EV Route Pro</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+          onClick={() => { localStorage.removeItem("ev_on_map"); window.location.reload(); }}>
+          <img src="/ev-route-pro-logo.png" alt="EV Route Pro" width={36} height={36} style={{ borderRadius: 9, objectFit: "cover" }} />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
+            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Australia</div>
+          </div>
         </div>
         <AuthBar onOpenAuth={openAuth} onOpenPro={openPro} />
       </div>
       <div style={{ height: 52 }} />
 
-      {/* 콘텐츠 블러 wrapper (헤더 제외) */}
+      {/* 콘텐츠 블러 wrapper */}
       <div style={{ filter: modalOpen ? "blur(5px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto" }}>
 
-      {/* 로딩 오버레이 */}
-      {isLoading && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(0,0,0,0.6)",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          backdropFilter: "blur(4px)",
-        }}>
+        {/* 로딩 오버레이 */}
+        {isLoading && (
           <div style={{
-            background: "linear-gradient(160deg, #0d1117, #161b27)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 20, padding: "36px 48px",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
-            boxShadow: "0 32px 64px rgba(0,0,0,0.5)",
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(4px)",
           }}>
             <div style={{
-              width: 52, height: 52,
-              border: "4px solid rgba(16,185,129,0.2)",
-              borderTop: "4px solid #10b981",
-              borderRadius: "50%",
-              animation: "spin 0.9s linear infinite",
-            }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 600 }}>Calculating your route...</div>
-            <div style={{ color: "#475569", fontSize: 12 }}>Finding charging stops along the way</div>
-          </div>
-        </div>
-      )}
-
-      {/* 배너 */}
-      <div className="bg-linear-to-r from-emerald-600 to-green-500 text-white p-6 text-center pb-10">
-        <h1 className="text-3xl font-bold">⚡ EV Route Pro</h1>
-        <p className="mt-2 text-lg">Smart EV trip planner for Australia</p>
-        <p className="text-sm mt-1 text-green-100">Plan your drive. Optimize charging. Arrive stress-free.</p>
-        <button
-          onClick={() => document.getElementById("planner-form")?.scrollIntoView({ behavior: "smooth" })}
-          className="mt-4 bg-white text-emerald-600 font-semibold px-6 py-2 rounded-lg shadow hover:bg-gray-100 transition"
-        >
-          Start Planning
-        </button>
-      </div>
-
-      {/* 폼 */}
-      <div className="px-4 -mt-6 mb-4">
-        <RoutePlanner
-          origin={origin} setOrigin={setOrigin}
-          destination={destination} setDestination={setDestination}
-          selectedModel={selectedModel} setSelectedModel={setSelectedModel}
-          startBattery={startBattery} setStartBattery={setStartBattery}
-          EV_MODELS={EV_MODELS}
-          handleRouteCalculation={handleRouteCalculation}
-          stops={stops} setStops={setStops}
-          directions={directions} stations={stations}
-        />
-      </div>
-
-      {/* 트립플랜 + 지도 */}
-      {routePlanned && (
-        <>
-          {/* 공유 / 저장 버튼 바 */}
-          <div className="px-4 mb-3">
-            <div style={{
-              display: "flex", gap: 10, alignItems: "center",
-              background: "white", borderRadius: 14, padding: "10px 16px",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+              background: "linear-gradient(160deg, #0d1117, #161b27)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 20, padding: "36px 48px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+              boxShadow: "0 32px 64px rgba(0,0,0,0.5)",
             }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#374151", flex: 1 }}>
-                {origin} → {destination}
-              </span>
+              <div style={{
+                width: 52, height: 52,
+                border: "4px solid rgba(16,185,129,0.2)",
+                borderTop: "4px solid #10b981",
+                borderRadius: "50%",
+                animation: "spin 0.9s linear infinite",
+              }} />
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <div style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 600 }}>Calculating your route...</div>
+              <div style={{ color: "#475569", fontSize: 12 }}>Finding charging stops along the way</div>
+            </div>
+          </div>
+        )}
 
-              {/* 저장 버튼 */}
-              <button
-                onClick={() => {
-                  if (!user) { openAuth("signup"); return; }
-                  if (!isPro) { openPro(); return; }
-                  alert("Route saved! ✅");
-                }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "7px 14px", borderRadius: 8, border: "none",
-                  background: isPro ? "linear-gradient(135deg, #f59e0b, #fbbf24)" : "#f1f5f9",
-                  color: isPro ? "#1a1a1a" : "#64748b",
-                  fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {isPro ? "⭐ Save Route" : "🔒 Save (Pro Plus)"}
-              </button>
+        {/* 배너 - 투명 배경으로 전체 그라디언트 통일 */}
+        <div style={{ textAlign: "center", padding: "32px 24px 40px", fontFamily: "'Inter', system-ui, sans-serif" }}>
+          <h1 style={{ color: "white", fontWeight: 800, fontSize: "clamp(2rem, 4vw, 2.8rem)", letterSpacing: "-0.03em", marginBottom: 10, lineHeight: 1.15 }}>⚡ EV Route Pro</h1>
+          <p style={{ color: "white", fontWeight: 500, fontSize: "1.15rem", marginBottom: 6, opacity: 0.95 }}>Smart EV trip planner for Australia</p>
+          <p style={{ color: "white", fontWeight: 400, fontSize: "0.9rem", opacity: 0.75, letterSpacing: "0.01em" }}>Plan your drive. Optimize charging. Arrive stress-free.</p>
+        </div>
 
-              {/* 공유 버튼 */}
-              <div style={{ position: "relative" }}>
+        {/* 폼 */}
+        <div className="px-4 -mt-6 mb-4">
+          <RoutePlanner
+            origin={origin} setOrigin={setOrigin}
+            destination={destination} setDestination={setDestination}
+            selectedModel={selectedModel} setSelectedModel={setSelectedModel}
+            startBattery={startBattery} setStartBattery={setStartBattery}
+            EV_MODELS={EV_MODELS}
+            handleRouteCalculation={handleRouteCalculation}
+            stops={stops} setStops={setStops}
+            directions={directions} stations={stations}
+          />
+        </div>
+
+        {/* 트립플랜 + 지도 */}
+        {routePlanned && (
+          <>
+            {/* 공유 / 저장 버튼 바 */}
+            <div className="max-w-4xl mx-auto px-4 mb-3">
+              <div style={{
+                display: "flex", gap: 10, alignItems: "center",
+                background: "white", borderRadius: 14, padding: "10px 16px",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#374151", flex: 1 }}>
+                  {origin} → {destination}
+                </span>
+
+                {/* 저장 버튼 */}
                 <button
-                  onClick={() => setShowShareMenu(!showShareMenu)}
+                  onClick={() => {
+                    if (!user) { openAuth("signup"); return; }
+                    if (!isPro) { openPro(); return; }
+                    alert("Route saved! ✅");
+                  }}
                   style={{
                     display: "flex", alignItems: "center", gap: 5,
                     padding: "7px 14px", borderRadius: 8, border: "none",
-                    background: "linear-gradient(135deg, #059669, #10b981)",
-                    color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    background: isPro ? "linear-gradient(135deg, #f59e0b, #fbbf24)" : "#f1f5f9",
+                    color: isPro ? "#1a1a1a" : "#64748b",
+                    fontSize: 12, fontWeight: 700, cursor: "pointer",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  🔗 Share
+                  {isPro ? "⭐ Save Route" : "🔒 Save (Pro Plus)"}
                 </button>
 
-                {showShareMenu && (
-                  <div style={{
-                    position: "absolute", top: 42, right: 0, zIndex: 300,
-                    background: "white", borderRadius: 12, padding: 8,
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
-                    minWidth: 180, border: "1px solid #f1f5f9",
-                  }}>
-                    {/* 링크 복사 */}
-                    <button
-                      onClick={() => {
-                        const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
-                        navigator.clipboard.writeText(url);
-                        setCopySuccess(true);
-                        setTimeout(() => { setCopySuccess(false); setShowShareMenu(false); }, 2000);
-                      }}
-                      style={{
-                        width: "100%", padding: "9px 12px", background: copySuccess ? "#f0fdf4" : "none",
-                        border: "none", borderRadius: 8, cursor: "pointer",
-                        fontSize: 13, fontWeight: 600, color: copySuccess ? "#059669" : "#374151",
-                        textAlign: "left", display: "flex", alignItems: "center", gap: 8,
-                      }}
-                    >
-                      {copySuccess ? "✅ Copied!" : "🔗 Copy link"}
-                    </button>
-
-                    {/* Twitter */}
-                    <button
-                      onClick={() => {
-                        const text = `Planning my EV trip from ${origin} to ${destination} with EV Route Pro! ⚡`;
-                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`, "_blank");
-                        setShowShareMenu(false);
-                      }}
-                      style={{
-                        width: "100%", padding: "9px 12px", background: "none",
-                        border: "none", borderRadius: 8, cursor: "pointer",
-                        fontSize: 13, fontWeight: 600, color: "#374151",
-                        textAlign: "left", display: "flex", alignItems: "center", gap: 8,
-                      }}
-                    >
-                      𝕏 Share on X
-                    </button>
-
-                    {/* Facebook */}
-                    <button
-                      onClick={() => {
-                        const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
-                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank");
-                        setShowShareMenu(false);
-                      }}
-                      style={{
-                        width: "100%", padding: "9px 12px", background: "none",
-                        border: "none", borderRadius: 8, cursor: "pointer",
-                        fontSize: 13, fontWeight: 600, color: "#374151",
-                        textAlign: "left", display: "flex", alignItems: "center", gap: 8,
-                      }}
-                    >
-                      📘 Share on Facebook
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 mb-4">
-            <ChargingTimeline
-              items={chargingTimeline}
-              onRemoveStop={handleRemoveStop}
-              onViewOnMap={handleViewOnMap}
-            />
-          </div>
-
-
-          <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8" style={{ display: modalOpen ? "none" : "block" }}>
-            <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
-              <GoogleMap
-                mapContainerStyle={containerStyle}
-                center={center}
-                zoom={10}
-                onLoad={(map) => setMapRef(map)}
-                options={{ disableDefaultUI: true }}
-              >
-                {directions && <DirectionsRenderer directions={directions} />}
-                <ChargerFilters visibleTypes={visibleTypes} toggleType={toggleType} />
-                <StationMarkers
-                  stations={stations.map(s => ({ ...s, isUsedAsWaypoint: s.isUsedAsWaypoint ?? false }))}
-                  setSelectedStation={setSelectedStation}
-                  visibleTypes={visibleTypes}
-                />
-
-                {selectedStation && (
-                  <InfoWindow
-                    position={{ lat: selectedStation.lat, lng: selectedStation.lng }}
-                    onCloseClick={() => setSelectedStation(null)}
+                {/* 공유 버튼 */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={() => setShowShareMenu(!showShareMenu)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "7px 14px", borderRadius: 8, border: "none",
+                      background: "linear-gradient(135deg, #059669, #10b981)",
+                      color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
                   >
-                    <div style={{ minWidth: 220, maxWidth: 280, fontSize: 14, lineHeight: 1.6 }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{selectedStation.title}</div>
-                      <div style={{ color: "#444", marginBottom: 2 }}>🔌 {selectedStation.type}</div>
-                      <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>
-                      <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>
-                      <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>
-                      {selectedStation.batteryAfterReach !== undefined && (
-                        <div style={{ color: "#333", marginBottom: 2 }}>
-                          🔋 Arrival: <strong>{selectedStation.batteryAfterReach.toFixed(1)}%</strong>
-                        </div>
-                      )}
-                      {selectedStation.estimatedChargeTime !== undefined && (
-                        <div style={{ color: "#333", marginBottom: 10 }}>
-                          ⏱ Charge to 100%: <strong>{selectedStation.estimatedChargeTime.toFixed(0)} min</strong>
-                        </div>
-                      )}
-                      {!selectedStation.isUsedAsWaypoint ? (
-                        <button
-                          style={{
-                            width: "100%", padding: "10px 12px", borderRadius: 10,
-                            background: "#059669", color: "white", border: "none",
-                            fontSize: 14, fontWeight: 700, cursor: "pointer",
-                          }}
-                          onClick={() => {
-                            const alreadyInTimeline = chargingTimeline.some(i =>
-                              i.type === "charge" && i.lat === selectedStation.lat && i.lng === selectedStation.lng
-                            );
-                            if (alreadyInTimeline) return;
-                            const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: true } : s);
-                            setStations(u);
-                            setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
-                            setChargingTimeline(prev => {
-                              const arrivalIdx = prev.findIndex(i => i.type === "arrival");
-                              const newStop: TimelineItem = {
-                                type: "charge",
-                                battery: selectedStation.batteryAfterReach ?? 20,
-                                location: [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
-                                stationType: selectedStation.type === "Supercharger" ? "Supercharger" : "Standard",
-                                estimatedChargeTime: selectedStation.estimatedChargeTime,
-                                stopId: selectedStation.id,
-                                lat: selectedStation.lat,
-                                lng: selectedStation.lng,
-                              };
-                              if (arrivalIdx === -1) return recalcArrivalBattery([...prev, newStop]);
-                              const next = [...prev]; next.splice(arrivalIdx, 0, newStop); return recalcArrivalBattery(next);
-                            });
-                          }}
-                        >+ Add as Charging Stop</button>
-                      ) : (
-                        <button
-                          style={{
-                            width: "100%", padding: "10px 12px", borderRadius: 10,
-                            background: "#e5e7eb", color: "#374151", border: "none",
-                            fontSize: 14, fontWeight: 700, cursor: "pointer",
-                          }}
-                          onClick={() => {
-                            const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
-                            setStations(u);
-                            setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
-                            setChargingTimeline(prev => recalcArrivalBattery(prev.filter(i =>
-                              !(i.stopId === selectedStation.id || (i.lat === selectedStation.lat && i.lng === selectedStation.lng))
-                            )));
-                          }}
-                        >− Remove Charging Stop</button>
-                      )}
+                    🔗 Share
+                  </button>
+
+                  {showShareMenu && (
+                    <div style={{
+                      position: "absolute", top: 42, right: 0, zIndex: 300,
+                      background: "white", borderRadius: 12, padding: 8,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                      minWidth: 180, border: "1px solid #f1f5f9",
+                    }}>
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
+                          navigator.clipboard.writeText(url);
+                          setCopySuccess(true);
+                          setTimeout(() => { setCopySuccess(false); setShowShareMenu(false); }, 2000);
+                        }}
+                        style={{
+                          width: "100%", padding: "9px 12px", background: copySuccess ? "#f0fdf4" : "none",
+                          border: "none", borderRadius: 8, cursor: "pointer",
+                          fontSize: 13, fontWeight: 600, color: copySuccess ? "#059669" : "#374151",
+                          textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                        }}
+                      >
+                        {copySuccess ? "✅ Copied!" : "🔗 Copy link"}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const text = `Planning my EV trip from ${origin} to ${destination} with EV Route Pro! ⚡`;
+                          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`, "_blank");
+                          setShowShareMenu(false);
+                        }}
+                        style={{
+                          width: "100%", padding: "9px 12px", background: "none",
+                          border: "none", borderRadius: 8, cursor: "pointer",
+                          fontSize: 13, fontWeight: 600, color: "#374151",
+                          textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                        }}
+                      >
+                        𝕏 Share on X
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
+                          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank");
+                          setShowShareMenu(false);
+                        }}
+                        style={{
+                          width: "100%", padding: "9px 12px", background: "none",
+                          border: "none", borderRadius: 8, cursor: "pointer",
+                          fontSize: 13, fontWeight: 600, color: "#374151",
+                          textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                        }}
+                      >
+                        📘 Share on Facebook
+                      </button>
                     </div>
-                  </InfoWindow>
-                )}
-              </GoogleMap>
-
-              <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-                <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
-                  style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) - 1)}
-                  style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-              </div>
-
-              <div className="absolute top-44 left-3 z-20">
-                <button
-                  onClick={() => {
-                    const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
-                    let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-                    if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
-                    window.open(url, "_blank");
-                  }}
-                  style={{ background: "white", borderRadius: 99, border: "none", cursor: "pointer", padding: "10px 18px", fontSize: 14, fontWeight: 600, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 6 }}
-                >📍 Open in Maps</button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+
+            <div style={{ padding: "0 16px" }}>
+              <ChargingTimeline
+                items={chargingTimeline}
+                onRemoveStop={handleRemoveStop}
+                onViewOnMap={handleViewOnMap}
+              />
+            </div>
+
+            <div id="map-section" className="max-w-4xl mx-auto px-4 pb-8" style={{ display: modalOpen ? "none" : "block" }}>
+              <div className="relative" style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+                <GoogleMap
+                  mapContainerStyle={containerStyle}
+                  center={center}
+                  zoom={10}
+                  onLoad={(map) => setMapRef(map)}
+                  options={{ disableDefaultUI: true }}
+                >
+                  {directions && <DirectionsRenderer directions={directions} />}
+                  <ChargerFilters visibleTypes={visibleTypes} toggleType={toggleType} />
+                  <StationMarkers
+                    stations={stations.map(s => ({ ...s, isUsedAsWaypoint: s.isUsedAsWaypoint ?? false }))}
+                    setSelectedStation={setSelectedStation}
+                    visibleTypes={visibleTypes}
+                  />
+
+                  {selectedStation && (
+                    <InfoWindow
+                      position={{ lat: selectedStation.lat, lng: selectedStation.lng }}
+                      onCloseClick={() => setSelectedStation(null)}
+                    >
+                      <div style={{ minWidth: 220, maxWidth: 280, fontSize: 14, lineHeight: 1.6 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{selectedStation.title}</div>
+                        <div style={{ color: "#444", marginBottom: 2 }}>🔌 {selectedStation.type}</div>
+                        <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>
+                        <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>
+                        <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>
+                        {selectedStation.batteryAfterReach !== undefined && (
+                          <div style={{ color: "#333", marginBottom: 2 }}>
+                            🔋 Arrival: <strong>{selectedStation.batteryAfterReach.toFixed(1)}%</strong>
+                          </div>
+                        )}
+                        {selectedStation.estimatedChargeTime !== undefined && (
+                          <div style={{ color: "#333", marginBottom: 10 }}>
+                            ⏱ Charge to 100%: <strong>{selectedStation.estimatedChargeTime.toFixed(0)} min</strong>
+                          </div>
+                        )}
+                        {!selectedStation.isUsedAsWaypoint ? (
+                          <button
+                            style={{
+                              width: "100%", padding: "10px 12px", borderRadius: 10,
+                              background: "#059669", color: "white", border: "none",
+                              fontSize: 14, fontWeight: 700, cursor: "pointer",
+                            }}
+                            onClick={() => {
+                              const alreadyInTimeline = chargingTimeline.some(i =>
+                                i.type === "charge" && i.lat === selectedStation.lat && i.lng === selectedStation.lng
+                              );
+                              if (alreadyInTimeline) return;
+                              const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: true } : s);
+                              setStations(u);
+                              setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
+                              setChargingTimeline(prev => {
+                                const arrivalIdx = prev.findIndex(i => i.type === "arrival");
+                                const newStop: TimelineItem = {
+                                  type: "charge",
+                                  battery: selectedStation.batteryAfterReach ?? 20,
+                                  location: [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
+                                  stationType: selectedStation.type === "Supercharger" ? "Supercharger" : "Standard",
+                                  estimatedChargeTime: selectedStation.estimatedChargeTime,
+                                  stopId: selectedStation.id,
+                                  lat: selectedStation.lat,
+                                  lng: selectedStation.lng,
+                                };
+                                if (arrivalIdx === -1) return recalcArrivalBattery([...prev, newStop]);
+                                const next = [...prev]; next.splice(arrivalIdx, 0, newStop); return recalcArrivalBattery(next);
+                              });
+                            }}
+                          >+ Add as Charging Stop</button>
+                        ) : (
+                          <button
+                            style={{
+                              width: "100%", padding: "10px 12px", borderRadius: 10,
+                              background: "#e5e7eb", color: "#374151", border: "none",
+                              fontSize: 14, fontWeight: 700, cursor: "pointer",
+                            }}
+                            onClick={() => {
+                              const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
+                              setStations(u);
+                              setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
+                              setChargingTimeline(prev => recalcArrivalBattery(prev.filter(i =>
+                                !(i.stopId === selectedStation.id || (i.lat === selectedStation.lat && i.lng === selectedStation.lng))
+                              )));
+                            }}
+                          >− Remove Charging Stop</button>
+                        )}
+                      </div>
+                    </InfoWindow>
+                  )}
+                </GoogleMap>
+
+                <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+                  <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
+                    style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) - 1)}
+                    style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                </div>
+
+                <div className="absolute top-44 left-3 z-20">
+                  <button
+                    onClick={() => {
+                      const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
+                      let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+                      if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
+                      window.open(url, "_blank");
+                    }}
+                    style={{ background: "white", borderRadius: 99, border: "none", cursor: "pointer", padding: "10px 18px", fontSize: 14, fontWeight: 600, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 6 }}
+                  >📍 Open in Maps</button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div> {/* 블러 wrapper 끝 */}
     </div>
   );
