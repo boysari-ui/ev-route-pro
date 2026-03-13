@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Map from "@/components/Map";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 
 function useReveal() {
   useEffect(() => {
@@ -400,6 +401,7 @@ export default function Home() {
           ))}
         </div>
       </footer>
+       <PWAInstallBanner /> 
     </main>
   );
 }

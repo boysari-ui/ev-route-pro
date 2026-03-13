@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -60,11 +61,11 @@ export default function PWAInstallBanner() {
       display: "flex", alignItems: "center", gap: 14,
     }}>
       {/* 아이콘 */}
-      <div style={{
-        width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-        background: "white", display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 26,
-      }}>⚡</div>
+    <div style={{
+  width: 48, height: 48, borderRadius: 12, flexShrink: 0, overflow: "hidden",
+}}>
+  <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={48} height={48} style={{ objectFit:"cover" }}/>
+</div>
 
       {/* 텍스트 */}
       <div style={{ flex: 1, minWidth: 0 }}>
