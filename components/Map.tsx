@@ -11,6 +11,7 @@ import { EVModel } from "../types/ev";
 import { EV_MODELS } from "../data/evModels";
 import { useState, useEffect } from "react";
 import ChargerFilters from "./ChargerFilters";
+import Link from "next/link";
 import {
   GoogleMap,
   useLoadScript,
@@ -842,6 +843,21 @@ export default function Map() {
             </div>
           </>
         )}
+
+        <footer style={{ background:"white", borderTop:"1px solid #e5e7eb", display:"flex", flexDirection:"column", alignItems:"center", gap:12, textAlign:"center", padding:"24px 20px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+            <img src="/ev-route-pro-logo.png" alt="EV Route Pro" width={40} height={40} style={{ borderRadius:7, objectFit:"cover" }}/>
+            <span style={{ fontWeight:800, fontSize:"0.95rem", color:"#059669" }}>EV Route Pro</span>
+          </div>
+          <p style={{ fontSize:"0.8rem", color:"#9ca3af", maxWidth:480, lineHeight:1.6, margin:0 }}>
+            EV Route Pro is a simple EV road trip planner that helps drivers find charging stops and navigate with Google Maps.
+          </p>
+          <div style={{ display:"flex", gap:24 }}>
+            {[["Privacy","/privacy"],["Terms","/terms"],["Contact","/contact"]].map(([label,href])=>(
+              <Link key={label} href={href} style={{ fontSize:"0.8rem", color:"#9ca3af", textDecoration:"none" }}>{label}</Link>
+            ))}
+          </div>
+        </footer>
       </div>
     </div>
   );
