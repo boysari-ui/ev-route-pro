@@ -820,14 +820,7 @@ export default function Map() {
                   )}
                 </GoogleMap>
 
-                <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-                  <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
-                    style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                  <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) - 1)}
-                    style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                </div>
-
-                <div className="absolute top-44 left-3 z-20">
+                <div className="absolute top-4 right-4 z-20" style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
                   <button
                     onClick={() => {
                       const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
@@ -835,8 +828,14 @@ export default function Map() {
                       if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
                       window.open(url, "_blank");
                     }}
-                    style={{ background: "white", borderRadius: 99, border: "none", cursor: "pointer", padding: "10px 18px", fontSize: 14, fontWeight: 600, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 6 }}
+                    style={{ background: "white", borderRadius: 10, border: "none", cursor: "pointer", padding: "10px 14px", fontSize: 13, fontWeight: 600, boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, height: 48, whiteSpace: "nowrap" }}
                   >📍 Open in Maps</button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
+                      style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) - 1)}
+                      style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                  </div>
                 </div>
               </div>
             </div>
