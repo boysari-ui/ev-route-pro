@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useAuth } from "./useAuth";
 
 interface Props {
   onClose: () => void;
@@ -7,6 +8,7 @@ interface Props {
 
 export default function ProUpgradeModal({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleUpgrade = async () => {
     setLoading(true);
@@ -14,9 +16,7 @@ export default function ProUpgradeModal({ onClose }: Props) {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-        }),
+        body: JSON.stringify({ email: user?.email || "" }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
