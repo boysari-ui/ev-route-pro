@@ -7,15 +7,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    const { email, uid } = await req.json();
     const priceId = process.env.STRIPE_PRICE_ID;
     const secretKey = process.env.STRIPE_SECRET_KEY;
 
-    console.log("Checkout attempt:", { 
-      hasPriceId: !!priceId, 
+    console.log("Checkout attempt:", {
+      hasPriceId: !!priceId,
       hasSecretKey: !!secretKey,
       priceId: priceId?.slice(0, 10) + "...",
-      email 
+      email
     });
 
     if (!secretKey) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/?cancelled=true`,
-      metadata: { priceId },
+      metadata: { uid: uid || "", email: email || "" },
     });
 
     return NextResponse.json({ url: session.url });

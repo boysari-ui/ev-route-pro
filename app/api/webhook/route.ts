@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-02-25.clover",
+});
+
+if (!getApps().length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!);
+  initializeApp({ credential: cert(serviceAccount) });
+}
+const db = getFirestore();
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -14,10 +24,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  // 결제 성공 로그 (Firebase는 나중에 추가)
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    console.log("✅ Payment success:", session.customer_email);
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const uid = session.metadata?.uid;
+        const customerId = session.customer as string;
+        const subscriptionId = session.subscription as string;
+
+        if (uid) {
+          // uid로 직접 업데이트 (가장 정확)
+          await db.collection("users").doc(uid).set({
+            isPro: true,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId,
+            proSince: new Date().toISOString(),
+          }, { merge: true });
+          console.log("✅ isPro:true set for uid:", uid);
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        const customerId = sub.customer as string;
+        const snapshot = await db.collection("users")
+          .where("stripeCustomerId", "==", customerId).get();
+        if (!snapshot.empty) {
+          await snapshot.docs[0].ref.update({ isPro: false });
+          console.log("✅ isPro:false for:", customerId);
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        const snapshot = await db.collection("users")
+          .where("stripeCustomerId", "==", customerId).get();
+        if (!snapshot.empty) {
+          await snapshot.docs[0].ref.update({ isPro: false });
+        }
+        break;
+      }
+    }
+  } catch (err: any) {
+    console.error("Firestore error:", err.message);
   }
 
   return NextResponse.json({ received: true });

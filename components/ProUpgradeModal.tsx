@@ -16,7 +16,7 @@ export default function ProUpgradeModal({ onClose }: Props) {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user?.email || "" }),
+        body: JSON.stringify({ email: user?.email || "", uid: user?.uid || "" }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
