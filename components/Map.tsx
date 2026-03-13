@@ -504,9 +504,8 @@ export default function Map() {
 
         {/* 배너 - 투명 배경으로 전체 그라디언트 통일 */}
         <div style={{ textAlign: "center", padding: "32px 24px 40px", fontFamily: "'Inter', system-ui, sans-serif" }}>
-          <h1 style={{ color: "white", fontWeight: 800, fontSize: "clamp(2rem, 4vw, 2.8rem)", letterSpacing: "-0.03em", marginBottom: 10, lineHeight: 1.15 }}>⚡ EV Route Pro</h1>
-          <p style={{ color: "white", fontWeight: 500, fontSize: "1.15rem", marginBottom: 6, opacity: 0.95 }}>Smart EV trip planner for Australia</p>
-          <p style={{ color: "white", fontWeight: 400, fontSize: "0.9rem", opacity: 0.75, letterSpacing: "0.01em" }}>Plan your drive. Optimize charging. Arrive stress-free.</p>
+          <h1 style={{ color: "white", fontWeight: 800, fontSize: "clamp(2rem, 4vw, 2.8rem)", letterSpacing: "-0.03em", marginBottom: 10, lineHeight: 1.15 }}>⚡ Plan. Charge. Drive.</h1>
+          <p style={{ color: "white", fontWeight: 500, fontSize: "1.15rem", marginBottom: 6, opacity: 0.95 }}>Calculate your charging stops and launch straight to Google Maps.</p>
         </div>
 
         {/* 폼 */}
