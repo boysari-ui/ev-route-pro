@@ -6,6 +6,8 @@ import Link from "next/link";
 import Map from "@/components/Map";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import AuthModal from "@/components/AuthModal";
+import AuthBar from "@/components/AuthBar";
+import { useAuth } from "@/components/useAuth";
 
 function useReveal() {
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function Home() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
+  const { user } = useAuth();
   useReveal();
 
   useEffect(() => {
@@ -169,14 +172,22 @@ export default function Home() {
             <div style={{ fontSize:"0.6rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginTop:2 }}>Australia</div>
           </div>
         </div>
-        <div style={{ display:"flex", gap:8 }}>
-          <button onClick={() => setAuthMode("signin")} style={{ background:"transparent", color:"white", fontWeight:600, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"1px solid rgba(255,255,255,0.2)", cursor:"pointer", whiteSpace:"nowrap" }}>
-            Log in
-          </button>
-          <button onClick={() => setAuthMode("signup")} style={{ background:"white", color:G1, fontWeight:700, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer", boxShadow:"0 2px 12px rgba(0,0,0,0.18)", whiteSpace:"nowrap" }}>
-            Sign up free
-          </button>
-        </div>
+        {user ? (
+          <AuthBar
+            onOpenAuth={(mode) => setAuthMode(mode)}
+            onOpenPro={() => {}}
+            onOpenProfile={() => {}}
+          />
+        ) : (
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={() => setAuthMode("signin")} style={{ background:"transparent", color:"white", fontWeight:600, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"1px solid rgba(255,255,255,0.2)", cursor:"pointer", whiteSpace:"nowrap" }}>
+              Log in
+            </button>
+            <button onClick={() => setAuthMode("signup")} style={{ background:"white", color:G1, fontWeight:700, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer", boxShadow:"0 2px 12px rgba(0,0,0,0.18)", whiteSpace:"nowrap" }}>
+              Sign up free
+            </button>
+          </div>
+        )}
       </nav>
       {authMode && <AuthModal onClose={() => setAuthMode(null)} defaultMode={authMode} />}
 
