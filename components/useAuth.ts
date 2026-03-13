@@ -10,14 +10,17 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 3초 안에 응답 없으면 강제로 loading 해제
+    const timeout = setTimeout(() => setLoading(false), 3000);
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      clearTimeout(timeout);
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
           const snap = await getDoc(doc(db, "users", firebaseUser.uid));
           setIsPro(snap.data()?.isPro === true);
         } catch (e) {
-          // 오프라인 or 네트워크 에러 → isPro false 유지
           console.warn("Firestore offline, defaulting isPro to false");
           setIsPro(false);
         }
@@ -26,7 +29,7 @@ export function useAuth() {
       }
       setLoading(false);
     });
-    return () => unsub();
+    return () => { unsub(); clearTimeout(timeout); };
   }, []);
 
   return { user, isPro, loading };
