@@ -58,9 +58,9 @@ export default function ProUpgradeModal({ onClose }: Props) {
             borderRadius: 8, padding: "4px 12px",
             fontSize: 11, fontWeight: 800, color: "#1a1a1a", letterSpacing: "0.1em",
             marginBottom: 12,
-          }}>PRO</div>
+          }}>PRO PLUS</div>
           <div style={{ color: "white", fontSize: 22, fontWeight: 800 }}>
-            Unlock EV Route Pro
+            Unlock EV Route Pro <span style={{ color: "#f59e0b" }}>Plus</span>
           </div>
           <div style={{ color: "#64748b", fontSize: 14, marginTop: 6 }}>
             Plan smarter, charge faster
@@ -70,11 +70,11 @@ export default function ProUpgradeModal({ onClose }: Props) {
         {/* Features */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
           {[
-            { icon: "🗺️", free: "3 routes/day", pro: "Unlimited routes" },
-            { icon: "⚡", free: "Basic charger list", pro: "Supercharger priority + fastest route" },
-            { icon: "🔋", free: "Standard battery calc", pro: "Accurate real-world estimates" },
+            { icon: "🗺️", free: "10 routes/day", pro: "Unlimited route calculations" },
+            { icon: "⚡", free: "Nearest charger", pro: "Supercharger priority" },
             { icon: "📍", free: "—", pro: "Save favourite routes" },
-            { icon: "🚀", free: "—", pro: "Early access to new features" },
+            { icon: "📋", free: "—", pro: "Route history" },
+            { icon: "📶", free: "—", pro: "Offline mode" },
           ].map(({ icon, free, pro }) => (
             <div key={pro} style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
@@ -85,7 +85,7 @@ export default function ProUpgradeModal({ onClose }: Props) {
                 fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
                 background: "rgba(16,185,129,0.15)", color: "#10b981",
                 border: "1px solid rgba(16,185,129,0.3)",
-              }}>PRO</div>
+              }}>PRO PLUS</div>
             </div>
           ))}
         </div>

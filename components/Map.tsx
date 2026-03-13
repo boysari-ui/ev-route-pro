@@ -240,6 +240,18 @@ export default function Map() {
       return;
     }
 
+    // 1일 10회 제한 (Pro Plus는 무제한)
+    if (!isPro) {
+      const today = new Date().toDateString();
+      const stored = JSON.parse(localStorage.getItem("ev_route_usage") || "{}");
+      const count = stored.date === today ? stored.count : 0;
+      if (count >= 10) {
+        openPro();
+        return;
+      }
+      localStorage.setItem("ev_route_usage", JSON.stringify({ date: today, count: count + 1 }));
+    }
+
     setIsLoading(true);
     try {
       const response = await fetch("/api/route", {
@@ -340,14 +352,16 @@ export default function Map() {
           });
 
           if (closestStation) {
-            const st = closestStation as ChargePoint;
+            // Pro Plus: Supercharger 우선순위
+            const preferred = (isPro && closestSupercharger) ? closestSupercharger : closestStation;
+            const st = preferred as ChargePoint;
             chargeLocationName = [st.title, st.address].filter(Boolean).join(", ");
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
           }
 
-          if (closestSupercharger && chargeStationType !== "Supercharger") {
+          if (!isPro && closestSupercharger && chargeStationType !== "Supercharger") {
             const sc = closestSupercharger as ChargePoint;
             nearestSupercharger = {
               title: sc.title,
@@ -579,8 +593,11 @@ export default function Map() {
                     }}>
                       <button
                         onClick={() => {
-                          const url = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
-                          navigator.clipboard.writeText(url);
+                          const baseUrl = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
+                          const shareText = isPro ? baseUrl : `${baseUrl}
+
+⚡ Planned with EV Route Pro — evroutepro.com`;
+                          navigator.clipboard.writeText(shareText);
                           setCopySuccess(true);
                           setTimeout(() => { setCopySuccess(false); setShowShareMenu(false); }, 2000);
                         }}

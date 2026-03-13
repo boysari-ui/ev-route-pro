@@ -13,9 +13,14 @@ export function useAuth() {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Firestore에서 Pro 상태 확인
-        const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-        setIsPro(snap.data()?.isPro === true);
+        try {
+          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+          setIsPro(snap.data()?.isPro === true);
+        } catch (e) {
+          // 오프라인 or 네트워크 에러 → isPro false 유지
+          console.warn("Firestore offline, defaulting isPro to false");
+          setIsPro(false);
+        }
       } else {
         setIsPro(false);
       }
