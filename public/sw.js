@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ev-route-pro-v1';
+const CACHE_NAME = 'ev-route-pro-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -24,8 +24,10 @@ self.addEventListener('activate', (event) => {
 
 // Fetch — network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // API 요청은 캐시 안 함
+  // API 요청 캐시 안 함
   if (event.request.url.includes('/api/')) return;
+  // chrome-extension 등 http 아닌 요청 무시
+  if (!event.request.url.startsWith('http')) return;
 
   event.respondWith(
     fetch(event.request)
