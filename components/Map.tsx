@@ -209,6 +209,7 @@ export default function Map() {
       if (found) setSelectedModel(found);
     }
     closeProfile();
+    setPendingSharedRoute({ from: origin, to: destination });
   };
 
   // 저장된 경로 삭제
