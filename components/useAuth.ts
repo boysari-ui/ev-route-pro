@@ -9,6 +9,16 @@ export function useAuth() {
   const [isPro, setIsPro] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const checkPro = async (firebaseUser: User) => {
+    try {
+      const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+      setIsPro(snap.data()?.isPro === true);
+    } catch (e) {
+      console.warn("Firestore offline, defaulting isPro to false");
+      setIsPro(false);
+    }
+  };
+
   useEffect(() => {
     // 3초 안에 응답 없으면 강제로 loading 해제
     const timeout = setTimeout(() => setLoading(false), 3000);
@@ -17,13 +27,7 @@ export function useAuth() {
       clearTimeout(timeout);
       setUser(firebaseUser);
       if (firebaseUser) {
-        try {
-          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-          setIsPro(snap.data()?.isPro === true);
-        } catch (e) {
-          console.warn("Firestore offline, defaulting isPro to false");
-          setIsPro(false);
-        }
+        await checkPro(firebaseUser);
       } else {
         setIsPro(false);
       }
@@ -32,5 +36,10 @@ export function useAuth() {
     return () => { unsub(); clearTimeout(timeout); };
   }, []);
 
-  return { user, isPro, loading };
+  // 결제 후 Pro 상태 수동으로 다시 확인
+  const refreshPro = async () => {
+    if (user) await checkPro(user);
+  };
+
+  return { user, isPro, loading, refreshPro };
 }

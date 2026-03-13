@@ -6,9 +6,10 @@ import { logOut } from "./firebase";
 interface Props {
   onOpenAuth: (mode: "signin" | "signup") => void;
   onOpenPro: () => void;
+  onOpenProfile: () => void;
 }
 
-export default function AuthBar({ onOpenAuth, onOpenPro }: Props) {
+export default function AuthBar({ onOpenAuth, onOpenPro, onOpenProfile }: Props) {
   const { user, isPro, loading } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
@@ -69,6 +70,10 @@ export default function AuthBar({ onOpenAuth, onOpenPro }: Props) {
             <div style={{ color: "#64748b", fontSize: 11, padding: "4px 10px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               {user.email}
             </div>
+            <button onClick={() => { onOpenProfile(); setShowMenu(false); }} style={{
+              width: "100%", padding: "8px 10px", background: "none", border: "none",
+              color: "#e2e8f0", fontSize: 13, cursor: "pointer", textAlign: "left", borderRadius: 6,
+            }}>👤 My Profile</button>
             {!isPro && (
               <button onClick={() => { onOpenPro(); setShowMenu(false); }} style={{
                 width: "100%", padding: "8px 10px", background: "none", border: "none",

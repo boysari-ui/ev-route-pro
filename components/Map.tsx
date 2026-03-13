@@ -2,6 +2,7 @@
 import AuthBar from "./AuthBar";
 import AuthModal from "./AuthModal";
 import ProUpgradeModal from "./ProUpgradeModal";
+import ProfilePage from "./ProfilePage";
 import { useAuth } from "./useAuth";
 import ChargingTimeline from "./ChargingTimeline";
 import RoutePlanner from "./RoutePlanner";
@@ -55,6 +56,15 @@ interface ChargePoint {
   estimatedChargeTime?: number;
 }
 
+interface SavedRoute {
+  id: string;
+  origin: string;
+  destination: string;
+  model: string;
+  battery: number;
+  savedAt: string;
+}
+
 function computeDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -87,9 +97,11 @@ export default function Map() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
   const [showPro, setShowPro] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [pendingSharedRoute, setPendingSharedRoute] = useState<{from: string, to: string} | null>(null);
+  const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
 
-  const { user, isPro } = useAuth();
+  const { user, isPro, refreshPro } = useAuth();
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -97,10 +109,23 @@ export default function Map() {
   const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
   const openPro = () => { setShowPro(true); setModalOpen(true); };
   const closePro = () => { setShowPro(false); setModalOpen(false); };
+  const openProfile = () => { setShowProfile(true); setModalOpen(true); };
+  const closeProfile = () => { setShowProfile(false); setModalOpen(false); };
 
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
     new Set(["Selected Stop", "Supercharger", "Standard"])
   );
+
+  // 저장된 경로 불러오기
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("ev_saved_routes") || "[]");
+    setSavedRoutes(stored);
+  }, []);
+
+  // 맵 진입 시 Pro 상태 갱신 (결제 후 돌아왔을 때 반영)
+  useEffect(() => {
+    refreshPro();
+  }, []);
 
   // 공유 URL 파라미터 읽기
   useEffect(() => {
@@ -146,6 +171,51 @@ export default function Map() {
       mapRef.setZoom(14);
     }
     document.getElementById("map-section")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // 경로 저장
+  const handleSaveRoute = () => {
+    if (!user) { openAuth("signup"); return; }
+    if (!isPro) { openPro(); return; }
+
+    const existing: SavedRoute[] = JSON.parse(localStorage.getItem("ev_saved_routes") || "[]");
+    const isDuplicate = existing.some(r => r.origin === origin && r.destination === destination && r.model === selectedModel?.name);
+    if (isDuplicate) {
+      alert("이미 저장된 경로예요! ✅");
+      return;
+    }
+    const newRoute: SavedRoute = {
+      id: Date.now().toString(),
+      origin,
+      destination,
+      model: selectedModel?.name || "",
+      battery: startBattery,
+      savedAt: new Date().toISOString(),
+    };
+    const updated = [newRoute, ...existing];
+    localStorage.setItem("ev_saved_routes", JSON.stringify(updated));
+    setSavedRoutes(updated);
+    alert("Route saved! ✅");
+  };
+
+  // 저장된 경로 불러오기
+  const handleLoadRoute = (origin: string, destination: string) => {
+    const route = savedRoutes.find(r => r.origin === origin && r.destination === destination);
+    setOrigin(origin);
+    setDestination(destination);
+    if (route) {
+      setStartBattery(route.battery);
+      const found = EV_MODELS.find(m => m.name === route.model);
+      if (found) setSelectedModel(found);
+    }
+    closeProfile();
+  };
+
+  // 저장된 경로 삭제
+  const handleDeleteRoute = (id: string) => {
+    const updated = savedRoutes.filter(r => r.id !== id);
+    localStorage.setItem("ev_saved_routes", JSON.stringify(updated));
+    setSavedRoutes(updated);
   };
 
   const fetchStations = async (lat: number, lng: number): Promise<ChargePoint[]> => {
@@ -352,7 +422,6 @@ export default function Map() {
           });
 
           if (closestStation) {
-            // Pro Plus: Supercharger 우선순위
             const preferred = (isPro && closestSupercharger) ? closestSupercharger : closestStation;
             const st = preferred as ChargePoint;
             chargeLocationName = [st.title, st.address].filter(Boolean).join(", ");
@@ -462,6 +531,15 @@ export default function Map() {
       {/* 모달 - 블러 밖 최상위 */}
       {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
       {showPro && <ProUpgradeModal onClose={closePro} />}
+      {showProfile && (
+        <ProfilePage
+          onClose={closeProfile}
+          onOpenPro={openPro}
+          savedRoutes={savedRoutes}
+          onLoadRoute={handleLoadRoute}
+          onDeleteRoute={handleDeleteRoute}
+        />
+      )}
 
       {/* 상단 헤더 */}
       <div style={{
@@ -479,7 +557,7 @@ export default function Map() {
             <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Australia</div>
           </div>
         </div>
-        <AuthBar onOpenAuth={openAuth} onOpenPro={openPro} />
+        <AuthBar onOpenAuth={openAuth} onOpenPro={openPro} onOpenProfile={openProfile} />
       </div>
       <div style={{ height: 52 }} />
 
@@ -516,7 +594,7 @@ export default function Map() {
           </div>
         )}
 
-        {/* 배너 - 투명 배경으로 전체 그라디언트 통일 */}
+        {/* 배너 */}
         <div style={{ textAlign: "center", padding: "32px 24px 40px", fontFamily: "'Inter', system-ui, sans-serif" }}>
           <h1 style={{ color: "white", fontWeight: 800, fontSize: "clamp(2rem, 4vw, 2.8rem)", letterSpacing: "-0.03em", marginBottom: 10, lineHeight: 1.15 }}>⚡ Plan. Charge. Drive.</h1>
           <p style={{ color: "white", fontWeight: 500, fontSize: "1.15rem", marginBottom: 6, opacity: 0.95 }}>Calculate your charging stops and launch straight to Google Maps.</p>
@@ -552,11 +630,7 @@ export default function Map() {
 
                 {/* 저장 버튼 */}
                 <button
-                  onClick={() => {
-                    if (!user) { openAuth("signup"); return; }
-                    if (!isPro) { openPro(); return; }
-                    alert("Route saved! ✅");
-                  }}
+                  onClick={handleSaveRoute}
                   style={{
                     display: "flex", alignItems: "center", gap: 5,
                     padding: "7px 14px", borderRadius: 8, border: "none",
@@ -594,9 +668,7 @@ export default function Map() {
                       <button
                         onClick={() => {
                           const baseUrl = `${window.location.origin}?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&model=${encodeURIComponent(selectedModel?.name || "")}&battery=${startBattery}`;
-                          const shareText = isPro ? baseUrl : `${baseUrl}
-
-⚡ Planned with EV Route Pro — evroutepro.com`;
+                          const shareText = isPro ? baseUrl : `${baseUrl}\n\n⚡ Planned with EV Route Pro — evroutepro.com`;
                           navigator.clipboard.writeText(shareText);
                           setCopySuccess(true);
                           setTimeout(() => { setCopySuccess(false); setShowShareMenu(false); }, 2000);
@@ -770,7 +842,7 @@ export default function Map() {
             </div>
           </>
         )}
-      </div> {/* 블러 wrapper 끝 */}
+      </div>
     </div>
   );
 }

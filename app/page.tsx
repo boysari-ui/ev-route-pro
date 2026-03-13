@@ -39,6 +39,7 @@ const BLUE  = "#1a73e8";
 
 export default function Home() {
   const [showMap, setShowMap] = useState<boolean | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   useReveal();
 
@@ -46,11 +47,50 @@ export default function Home() {
     const wasOnMap = localStorage.getItem("ev_on_map") === "true";
     const params = new URLSearchParams(window.location.search);
     const hasSharedRoute = params.get("from") && params.get("to");
+    const isSuccess = params.get("success") === "true";
+
+    // 결제 성공 후 돌아왔을 때
+    if (isSuccess) {
+      window.history.replaceState({}, "", "/");
+      setShowSuccess(true);
+      localStorage.setItem("ev_on_map", "true");
+      setTimeout(() => {
+        setShowSuccess(false);
+        setShowMap(true);
+      }, 3000);
+      return;
+    }
+
     setShowMap(!!(wasOnMap || hasSharedRoute));
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // 결제 성공 화면
+  if (showSuccess) return (
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #059669, #10b981)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
+      <div style={{ textAlign: "center", color: "white", padding: 40 }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Welcome to Pro Plus!</h1>
+        <p style={{ fontSize: 16, opacity: 0.85, marginBottom: 4 }}>Your account is being upgraded...</p>
+        <p style={{ fontSize: 13, opacity: 0.6 }}>Redirecting you now</p>
+        <div style={{
+          width: 40, height: 40, margin: "24px auto 0",
+          border: "3px solid rgba(255,255,255,0.3)",
+          borderTop: "3px solid white",
+          borderRadius: "50%",
+          animation: "spin 0.9s linear infinite",
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
 
   if (showMap === null) return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#059669,#10b981)", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -153,7 +193,6 @@ export default function Home() {
                 style={{ borderRadius:14, objectFit:"cover", boxShadow:"0 8px 24px rgba(0,0,0,0.25)" }} />
               <div>
                 <div style={{ color:"white", fontWeight:900, fontSize:"clamp(1.1rem,3vw,1.5rem)", letterSpacing:"-0.02em", lineHeight:1 }}>EV Route Pro</div>
-          
               </div>
             </div>
 
@@ -401,7 +440,7 @@ export default function Home() {
           ))}
         </div>
       </footer>
-       <PWAInstallBanner /> 
+      <PWAInstallBanner />
     </main>
   );
 }
