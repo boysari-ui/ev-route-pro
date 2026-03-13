@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Map from "@/components/Map";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import AuthModal from "@/components/AuthModal";
 
 function useReveal() {
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function Home() {
   const [showMap, setShowMap] = useState<boolean | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   useReveal();
 
   useEffect(() => {
@@ -167,10 +169,16 @@ export default function Home() {
             <div style={{ fontSize:"0.6rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginTop:2 }}>Australia</div>
           </div>
         </div>
-        <button onClick={go} style={{ background:"white", color:G1, fontWeight:700, fontSize:"0.875rem", padding:"10px 22px", borderRadius:10, border:"none", cursor:"pointer", boxShadow:"0 2px 12px rgba(0,0,0,0.18)", whiteSpace:"nowrap" }}>
-          Start Planning
-        </button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setAuthMode("signin")} style={{ background:"transparent", color:"white", fontWeight:600, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"1px solid rgba(255,255,255,0.2)", cursor:"pointer", whiteSpace:"nowrap" }}>
+            Log in
+          </button>
+          <button onClick={() => setAuthMode("signup")} style={{ background:"white", color:G1, fontWeight:700, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer", boxShadow:"0 2px 12px rgba(0,0,0,0.18)", whiteSpace:"nowrap" }}>
+            Sign up free
+          </button>
+        </div>
       </nav>
+      {authMode && <AuthModal onClose={() => setAuthMode(null)} defaultMode={authMode} />}
 
       {/* ════ HERO ════ */}
       <section className="hero-pad" style={{
