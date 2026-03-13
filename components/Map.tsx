@@ -720,7 +720,7 @@ export default function Map() {
               </div>
             </div>
 
-            <div style={{ padding: "0 16px" }}>
+            <div style={{ padding: "0 16px" }} className="mb-3">
               <ChargingTimeline
                 items={chargingTimeline}
                 onRemoveStop={handleRemoveStop}
