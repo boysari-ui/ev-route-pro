@@ -87,15 +87,21 @@ export default function ProfilePage({ onClose, onOpenPro, savedRoutes = [], onLo
                   <div style={{ color: "#64748b", fontSize: 11 }}>Billed monthly · Cancel anytime</div>
                 </div>
               </div>
-              <a
-                href="https://billing.stripe.com/p/login/test_00g000000000000"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={async () => {
+                  const res = await fetch("/api/billing-portal", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ uid: user.uid }),
+                  });
+                  const data = await res.json();
+                  if (data.url) window.location.href = data.url;
+                }}
                 style={{
                   fontSize: 11, color: "#64748b", cursor: "pointer",
                   textDecoration: "underline", background: "none", border: "none",
                 }}
-              >Manage</a>
+              >Manage</button>
             </div>
           ) : (
             <button onClick={onOpenPro} style={{
