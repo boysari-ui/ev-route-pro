@@ -8,8 +8,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 if (!getApps().length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!);
-  initializeApp({ credential: cert(serviceAccount) });
+  try {
+    const raw = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!;
+    const serviceAccount = JSON.parse(raw.trim());
+    initializeApp({ credential: cert(serviceAccount) });
+  } catch (e) {
+    console.error("Firebase Admin init error:", e);
+  }
 }
 const db = getFirestore();
 
