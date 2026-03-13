@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import PWAInstallBanner from "../components/PWAInstallBanner";
+import { AuthProvider } from "../components/AuthProvider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 
@@ -47,7 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${inter.variable} antialiased`} style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <PWAInstallBanner />
         <script dangerouslySetInnerHTML={{
           __html: `
