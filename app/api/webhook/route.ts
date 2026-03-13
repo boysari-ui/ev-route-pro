@@ -7,16 +7,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-02-25.clover",
 });
 
-if (!getApps().length) {
-  try {
-    const raw = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!;
-    const serviceAccount = JSON.parse(raw.trim());
+function getDb() {
+  if (!getApps().length) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!);
     initializeApp({ credential: cert(serviceAccount) });
-  } catch (e) {
-    console.error("Firebase Admin init error:", e);
   }
+  return getFirestore();
 }
-const db = getFirestore();
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -30,6 +27,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const db = getDb();
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -38,14 +37,13 @@ export async function POST(req: NextRequest) {
         const subscriptionId = session.subscription as string;
 
         if (uid) {
-          // uid로 직접 업데이트 (가장 정확)
           await db.collection("users").doc(uid).set({
             isPro: true,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId,
             proSince: new Date().toISOString(),
           }, { merge: true });
-          console.log("✅ isPro:true set for uid:", uid);
+          console.log("✅ isPro:true for uid:", uid);
         }
         break;
       }
