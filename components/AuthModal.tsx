@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { signInWithGoogle, signInWithEmail, signUpWithEmail } from "./firebase";
+import { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } from "./firebase";
 
 interface Props {
   onClose: () => void;
@@ -13,6 +13,21 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email) { setError("Enter your email address first."); return; }
+    setLoading(true);
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+      setError("");
+    } catch (e: any) {
+      setError("Could not send reset email. Check your email address.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -41,7 +56,9 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
     } catch (e: any) {
       if (e.code === "auth/email-already-in-use") setError("Email already in use. Try signing in.");
       else if (e.code === "auth/user-not-found") setError("No account found. Sign up first.");
-      else if (e.code === "auth/wrong-password") setError("Wrong password.");
+      else if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") setError("Wrong email or password.");
+      else if (e.code === "auth/invalid-email") setError("Invalid email address.");
+      else if (e.code === "auth/too-many-requests") setError("Too many attempts. Try again later.");
       else setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -126,7 +143,22 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
           }}
         />
 
-        {/* 에러 */}
+        {/* Forgot password */}
+        {mode === "signin" && (
+          <div style={{ textAlign: "right", marginBottom: 12, marginTop: -8 }}>
+            <button onClick={handleForgotPassword} disabled={loading} style={{
+              background: "none", border: "none", color: "#64748b", fontSize: 12,
+              cursor: "pointer", textDecoration: "underline",
+            }}>Forgot password?</button>
+          </div>
+        )}
+
+        {/* 에러 / 성공 */}
+        {resetSent && (
+          <div style={{ color: "#10b981", fontSize: 12, marginBottom: 12, textAlign: "center" }}>
+            Password reset email sent! Check your inbox.
+          </div>
+        )}
         {error && (
           <div style={{ color: "#f87171", fontSize: 12, marginBottom: 12, textAlign: "center" }}>
             {error}

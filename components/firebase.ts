@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -27,3 +27,6 @@ export const signUpWithEmail = (email: string, password: string) =>
 
 // 로그아웃
 export const logOut = () => signOut(auth);
+
+// 비밀번호 재설정
+export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email);
