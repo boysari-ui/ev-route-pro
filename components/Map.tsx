@@ -122,10 +122,10 @@ export default function Map() {
     setSavedRoutes(stored);
   }, []);
 
-  // 맵 진입 시 Pro 상태 갱신 (결제 후 돌아왔을 때 반영)
+  // 맵 진입 시 Pro 상태 갱신 - user 확인 후 폴링 시작
   useEffect(() => {
-    refreshPro();
-  }, []);
+    if (user) refreshPro();
+  }, [user]);
 
   // 공유 URL 파라미터 읽기
   useEffect(() => {
