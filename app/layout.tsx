@@ -7,7 +7,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "EV Route Pro — Smart EV Trip Planner Australia",
+  title: "EV Route Pro — Smart EV Trip Planner for Australia",
   description: "Plan your EV road trip across Australia. Find charging stops, estimate battery usage, and arrive stress-free.",
   manifest: "/manifest.json",
   appleWebApp: {

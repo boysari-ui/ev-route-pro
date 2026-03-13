@@ -18,7 +18,7 @@ import {
 } from "@react-google-maps/api";
 
 const containerStyle = { width: "100%", height: "calc(100vh - 180px)" };
-const LIBRARIES: ["places"] = ["places"];
+const LIBRARIES: ("places" | "marker" | "geometry")[] = ["places", "marker"];
 const center = { lat: -37.8136, lng: 144.9631 };
 
 interface NearestSupercharger {
@@ -64,10 +64,10 @@ function computeDistanceKm(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export default function Map() {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: LIBRARIES,
-  });
+const { isLoaded } = useLoadScript({
+  googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+  libraries: LIBRARIES,  // ← 고정 배열 사용
+});
 
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [chargingTimeline, setChargingTimeline] = useState<TimelineItem[]>([]);
