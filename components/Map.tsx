@@ -529,7 +529,7 @@ export default function Map() {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to right, #059669, #22c55e)" }}>
+    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to right, #059669, #22c55e)", display: "flex", flexDirection: "column" }}>
       {/* 모달 - 블러 밖 최상위 */}
       {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
       {showPro && <ProUpgradeModal onClose={closePro} />}
@@ -564,7 +564,7 @@ export default function Map() {
       <div style={{ height: 52 }} />
 
       {/* 콘텐츠 블러 wrapper */}
-      <div style={{ filter: modalOpen ? "blur(5px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto" }}>
+      <div style={{ filter: modalOpen ? "blur(5px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto", flex: 1, display: "flex", flexDirection: "column" }}>
 
         {/* 로딩 오버레이 */}
         {isLoading && (
@@ -595,6 +595,9 @@ export default function Map() {
             </div>
           </div>
         )}
+
+        {/* 메인 콘텐츠 */}
+        <div style={{ flex: 1 }}>
 
         {/* 배너 */}
         <div style={{ textAlign: "center", padding: "32px 24px 40px", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -844,6 +847,8 @@ export default function Map() {
             </div>
           </>
         )}
+
+        </div>{/* 메인 콘텐츠 끝 */}
 
         <footer style={{ background:"white", borderTop:"1px solid #e5e7eb", display:"flex", flexDirection:"column", alignItems:"center", gap:12, textAlign:"center", padding:"24px 20px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:9 }}>
