@@ -529,7 +529,7 @@ export default function Map() {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to right, #059669, #22c55e)", display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to right, #059669, #22c55e)" }}>
       {/* 모달 - 블러 밖 최상위 */}
       {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
       {showPro && <ProUpgradeModal onClose={closePro} />}
@@ -564,7 +564,7 @@ export default function Map() {
       <div style={{ height: 52 }} />
 
       {/* 콘텐츠 블러 wrapper */}
-      <div style={{ filter: modalOpen ? "blur(5px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ filter: modalOpen ? "blur(5px)" : "none", transition: "filter 0.2s", pointerEvents: modalOpen ? "none" : "auto" }}>
 
         {/* 로딩 오버레이 */}
         {isLoading && (
