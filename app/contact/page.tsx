@@ -9,12 +9,26 @@ export default function Contact() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !email || !message) return;
-    // Replace this with your actual form submission logic
-    window.location.href = `mailto:hello@evroutepro.com?subject=Contact from ${name}&body=${message}%0A%0AFrom: ${name} (${email})`;
-    setSent(true);
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message }),
+      });
+      if (!res.ok) throw new Error("Failed to send");
+      setSent(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputStyle = {
@@ -52,7 +66,7 @@ export default function Contact() {
           </div>
           <h1 style={{ fontWeight: 800, fontSize: "clamp(2rem,4vw,2.8rem)", letterSpacing: "-0.03em", color: "#111827", marginBottom: 14, lineHeight: 1.15 }}>Contact Us</h1>
           <p style={{ fontSize: "1rem", color: "#6b7280", lineHeight: 1.7 }}>
-            Have a question, feedback, or found a bug? We'd love to hear from you. Send us a message and we'll get back to you as soon as possible.
+            Have a question, feedback, or found a bug? We&apos;d love to hear from you. Send us a message and we&apos;ll get back to you as soon as possible.
           </p>
         </div>
 
@@ -60,7 +74,7 @@ export default function Contact() {
           <div style={{ background: "#d1fae5", border: "1.5px solid #a7f3d0", borderRadius: 16, padding: "32px", textAlign: "center" }}>
             <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>✅</div>
             <div style={{ fontWeight: 700, fontSize: "1.1rem", color: "#065f46", marginBottom: 8 }}>Message sent!</div>
-            <p style={{ fontSize: "0.9rem", color: "#047857" }}>Thanks for reaching out. We'll get back to you soon.</p>
+            <p style={{ fontSize: "0.9rem", color: "#047857" }}>Thanks for reaching out. We&apos;ll get back to you soon.</p>
           </div>
         ) : (
           <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: "40px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
@@ -95,17 +109,22 @@ export default function Contact() {
                 onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
               />
             </div>
+            {error && (
+              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginBottom: 16 }}>{error}</div>
+            )}
             <button
               onClick={handleSubmit}
+              disabled={loading || !name || !email || !message}
               style={{
                 width: "100%", background: "#059669", color: "white",
                 fontWeight: 700, fontSize: "1rem", padding: "14px",
-                borderRadius: 10, border: "none", cursor: "pointer",
+                borderRadius: 10, border: "none",
+                cursor: (loading || !name || !email || !message) ? "not-allowed" : "pointer",
                 boxShadow: "0 4px 14px rgba(5,150,105,0.35)",
-                opacity: (!name || !email || !message) ? 0.5 : 1,
+                opacity: (loading || !name || !email || !message) ? 0.5 : 1,
               }}
             >
-              Send Message
+              {loading ? "Sending..." : "Send Message"}
             </button>
           </div>
         )}
