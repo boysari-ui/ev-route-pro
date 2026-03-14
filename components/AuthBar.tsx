@@ -7,9 +7,11 @@ interface Props {
   onOpenAuth: (mode: "signin" | "signup") => void;
   onOpenPro: () => void;
   onOpenProfile: () => void;
+  hideUpgrade?: boolean;
+  onStartPlanning?: () => void;
 }
 
-export default function AuthBar({ onOpenAuth, onOpenPro, onOpenProfile }: Props) {
+export default function AuthBar({ onOpenAuth, onOpenPro, onOpenProfile, hideUpgrade, onStartPlanning }: Props) {
   const { user, isPro, loading } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
@@ -33,7 +35,13 @@ export default function AuthBar({ onOpenAuth, onOpenPro, onOpenProfile }: Props)
 
   return (
     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-      {isPro ? (
+      {hideUpgrade ? (
+        <button onClick={onStartPlanning} style={{
+          padding: "7px 14px", borderRadius: 8, border: "none",
+          background: "linear-gradient(135deg, #059669, #10b981)",
+          color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
+        }}>⚡ Start Planning</button>
+      ) : isPro ? (
         <div style={{
           background: "linear-gradient(135deg, #f59e0b, #fbbf24)",
           borderRadius: 8, padding: "4px 10px",
