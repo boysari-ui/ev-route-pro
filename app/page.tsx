@@ -6,7 +6,6 @@ import Link from "next/link";
 import Map from "@/components/Map";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import AuthModal from "@/components/AuthModal";
-import AuthBar from "@/components/AuthBar";
 import { useAuth } from "@/components/useAuth";
 
 function useReveal() {
@@ -173,11 +172,9 @@ export default function Home() {
           </div>
         </div>
         {user ? (
-          <AuthBar
-            onOpenAuth={(mode) => setAuthMode(mode)}
-            onOpenPro={() => {}}
-            onOpenProfile={() => {}}
-          />
+          <button onClick={go} style={{ background:"linear-gradient(135deg,#059669,#10b981)", color:"white", fontWeight:700, fontSize:"0.875rem", padding:"10px 20px", borderRadius:10, border:"none", cursor:"pointer", boxShadow:"0 2px 12px rgba(16,185,129,0.35)", whiteSpace:"nowrap" }}>
+            ⚡ Start Planning
+          </button>
         ) : (
           <div style={{ display:"flex", gap:8 }}>
             <button onClick={() => setAuthMode("signin")} style={{ background:"transparent", color:"white", fontWeight:600, fontSize:"0.875rem", padding:"10px 18px", borderRadius:10, border:"1px solid rgba(255,255,255,0.2)", cursor:"pointer", whiteSpace:"nowrap" }}>
