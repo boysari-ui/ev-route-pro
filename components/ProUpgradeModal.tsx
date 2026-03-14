@@ -67,25 +67,31 @@ export default function ProUpgradeModal({ onClose }: Props) {
           </div>
         </div>
 
-        {/* Features */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
+        {/* Comparison Table */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", marginBottom: 8, padding: "0 12px" }}>
+            <div />
+            <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, textAlign: "center" }}>FREE</div>
+            <div style={{ fontSize: 11, fontWeight: 800, textAlign: "center", color: "#fbbf24" }}>PRO PLUS ⚡</div>
+          </div>
           {[
-            { icon: "🗺️", free: "10 routes/day", pro: "Unlimited route calculations" },
-            { icon: "⚡", free: "Nearest charger", pro: "Supercharger priority" },
-            { icon: "📍", free: "—", pro: "Save favourite routes" },
-            { icon: "📋", free: "—", pro: "Route history" },
-            { icon: "📶", free: "—", pro: "Offline mode" },
-          ].map(({ icon, free, pro }) => (
-            <div key={pro} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: "white", fontSize: 13, fontWeight: 600 }}>{pro}</div>
+            { icon: "🗺️", label: "Route calculations", free: "10 / day", pro: "Unlimited" },
+            { icon: "⚡", label: "Charger priority",   free: "Standard",  pro: "Supercharger first" },
+            { icon: "🚗", label: "EV models",          free: "10 models", pro: "25 models" },
+            { icon: "📍", label: "Save routes",        free: "✕",         pro: "✓" },
+            { icon: "📋", label: "Route history",      free: "✕",         pro: "✓" },
+          ].map(({ icon, label, free, pro }, i) => (
+            <div key={label} style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+              alignItems: "center", padding: "10px 12px", borderRadius: 10,
+              background: i % 2 === 0 ? "rgba(255,255,255,0.04)" : "transparent",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{ color: "#94a3b8", fontSize: 12 }}>{label}</span>
               </div>
-              <div style={{
-                fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
-                background: "rgba(16,185,129,0.15)", color: "#10b981",
-                border: "1px solid rgba(16,185,129,0.3)",
-              }}>PRO PLUS</div>
+              <div style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: free === "✕" ? "#334155" : "#64748b" }}>{free}</div>
+              <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: pro === "✕" ? "#334155" : "#10b981" }}>{pro}</div>
             </div>
           ))}
         </div>
