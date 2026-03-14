@@ -79,7 +79,6 @@ export default function ProUpgradeModal({ onClose }: Props) {
             { icon: "⚡", label: "Charger priority",   free: "Standard",  pro: "Supercharger first" },
             { icon: "🚗", label: "EV models",          free: "10 models", pro: "25 models" },
             { icon: "📍", label: "Save routes",        free: "✕",         pro: "✓" },
-            { icon: "📋", label: "Route history",      free: "✕",         pro: "✓" },
           ].map(({ icon, label, free, pro }, i) => (
             <div key={label} style={{
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
