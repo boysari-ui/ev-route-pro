@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 interface AuthContextValue {
@@ -23,43 +23,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPro, setIsPro] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const checkPro = async (firebaseUser: User): Promise<boolean> => {
-    try {
-      const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-      const pro = snap.data()?.isPro === true;
-      setIsPro(pro);
-      return pro;
-    } catch (e) {
-      console.warn("Firestore offline, defaulting isPro to false");
-      setIsPro(false);
-      return false;
-    }
-  };
-
   useEffect(() => {
-    const timeout = setTimeout(() => setLoading(false), 3000);
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      clearTimeout(timeout);
+    let unsubFirestore: (() => void) | null = null;
+
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
+      if (unsubFirestore) { unsubFirestore(); unsubFirestore = null; }
+
       if (firebaseUser) {
-        await checkPro(firebaseUser);
+        unsubFirestore = onSnapshot(
+          doc(db, "users", firebaseUser.uid),
+          (snap) => { setIsPro(snap.data()?.isPro === true); setLoading(false); },
+          () => { setIsPro(false); setLoading(false); }
+        );
       } else {
         setIsPro(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => { unsub(); clearTimeout(timeout); };
+
+    return () => { unsubAuth(); if (unsubFirestore) unsubFirestore(); };
   }, []);
 
-  const refreshPro = async () => {
-    if (!user) return;
-    const currentUser = user;
-    for (let i = 0; i < 5; i++) {
-      await new Promise(res => setTimeout(res, 2000));
-      const pro = await checkPro(currentUser);
-      if (pro) return;
-    }
-  };
+  // no-op: onSnapshot handles real-time updates
+  const refreshPro = async () => {};
 
   return (
     <AuthContext.Provider value={{ user, isPro, loading, refreshPro }}>
