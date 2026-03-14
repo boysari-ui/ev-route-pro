@@ -114,7 +114,7 @@ export default function Map() {
   const closeProfile = () => { setShowProfile(false); setModalOpen(false); };
 
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
-    new Set(["Selected Stop", "Supercharger", "Standard"])
+    new Set(["Selected Stop"])
   );
 
   // 저장된 경로 불러오기
