@@ -201,7 +201,7 @@ export default function Home() {
                 style={{ borderRadius:14, objectFit:"cover", boxShadow:"0 8px 24px rgba(0,0,0,0.25)" }} />
               <div>
                 <div style={{ color:"white", fontWeight:900, fontSize:"clamp(1.1rem,3vw,1.5rem)", letterSpacing:"-0.02em", lineHeight:1 }}>EV Route Pro</div>
-                <div style={{ fontSize:"0.72rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginTop:4 }}>Australia</div>
+                <div style={{ fontSize:"0.86rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginTop:4 }}>Australia</div>
               </div>
             </div>
 
