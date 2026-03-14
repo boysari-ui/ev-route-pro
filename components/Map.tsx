@@ -613,6 +613,7 @@ export default function Map() {
             handleRouteCalculation={handleRouteCalculation}
             stops={stops} setStops={setStops}
             directions={directions} stations={stations}
+            isPro={isPro} onOpenPro={openPro}
           />
         </div>
 

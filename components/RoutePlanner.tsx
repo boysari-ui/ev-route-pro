@@ -19,6 +19,8 @@ type RoutePlannerProps = {
   setStops: (stops: string[]) => void;
   directions?: any;
   stations?: { isUsedAsWaypoint?: boolean; lat: number; lng: number }[];
+  isPro?: boolean;
+  onOpenPro?: () => void;
 };
 
 // Google Places Autocomplete 인풋
@@ -125,6 +127,8 @@ export default function RoutePlanner({
   setStops,
   directions,
   stations,
+  isPro,
+  onOpenPro,
 }: RoutePlannerProps) {
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -217,6 +221,17 @@ export default function RoutePlanner({
               ))}
               <option value="__custom__">✏️ Other</option>
             </select>
+
+            {!isPro && (
+              <button
+                type="button"
+                onClick={onOpenPro}
+                className="text-xs text-left"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#f59e0b" }}
+              >
+                ⚡ 15 more models with Pro Plus
+              </button>
+            )}
 
             {/* Custom model 입력 패널 */}
             {isCustomModel && (
