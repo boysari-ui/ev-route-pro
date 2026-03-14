@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
             stripeSubscriptionId: subscriptionId,
             proSince: new Date().toISOString(),
           }, { merge: true });
-          console.log("✅ isPro:true for uid:", uid);
         }
         break;
       }
@@ -55,7 +54,6 @@ export async function POST(req: NextRequest) {
           .where("stripeCustomerId", "==", customerId).get();
         if (!snapshot.empty) {
           await snapshot.docs[0].ref.update({ isPro: false });
-          console.log("✅ isPro:false for:", customerId);
         }
         break;
       }

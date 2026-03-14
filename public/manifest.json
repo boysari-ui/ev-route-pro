@@ -33,13 +33,5 @@
     "purpose": "maskable"
   }
 ],
-  "screenshots": [
-    {
-      "src": "/screenshots/screen1.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "categories": ["travel", "navigation", "utilities"]
 }

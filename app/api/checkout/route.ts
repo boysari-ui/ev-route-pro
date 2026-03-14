@@ -11,13 +11,6 @@ export async function POST(req: NextRequest) {
     const priceId = process.env.STRIPE_PRICE_ID;
     const secretKey = process.env.STRIPE_SECRET_KEY;
 
-    console.log("Checkout attempt:", {
-      hasPriceId: !!priceId,
-      hasSecretKey: !!secretKey,
-      priceId: priceId?.slice(0, 10) + "...",
-      email
-    });
-
     if (!secretKey) {
       return NextResponse.json({ error: "Stripe secret key not configured" }, { status: 500 });
     }

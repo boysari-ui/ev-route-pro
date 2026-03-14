@@ -21,11 +21,13 @@ export const metadata: Metadata = {
     url: "https://evroutepro.com",
     siteName: "EV Route Pro",
     type: "website",
+    images: [{ url: "https://evroutepro.com/og-image.png", width: 1200, height: 630, alt: "EV Route Pro" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "EV Route Pro",
     description: "Smart EV trip planner for Australia",
+    images: ["https://evroutepro.com/og-image.png"],
   },
 };
 
@@ -57,8 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js')
-                  .then(function(reg) { console.log('SW registered'); })
-                  .catch(function(err) { console.log('SW failed: ', err); });
+                  .then(function() {})
+                  .catch(function() {});
               });
             }
           `
