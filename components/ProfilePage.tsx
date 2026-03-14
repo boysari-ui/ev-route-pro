@@ -89,9 +89,10 @@ export default function ProfilePage({ onClose, onOpenPro, savedRoutes = [], onLo
               </div>
               <button
                 onClick={async () => {
+                  const token = await user.getIdToken();
                   const res = await fetch("/api/billing-portal", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                     body: JSON.stringify({ uid: user.uid }),
                   });
                   const data = await res.json();

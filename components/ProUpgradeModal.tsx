@@ -13,9 +13,10 @@ export default function ProUpgradeModal({ onClose }: Props) {
   const handleUpgrade = async () => {
     setLoading(true);
     try {
+      const token = await user?.getIdToken();
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ email: user?.email || "", uid: user?.uid || "" }),
       });
       const data = await res.json();
