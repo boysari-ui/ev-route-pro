@@ -12,6 +12,7 @@ import { EV_MODELS } from "../data/evModels";
 import { useState, useEffect } from "react";
 import ChargerFilters from "./ChargerFilters";
 import Link from "next/link";
+import { trackRouteCalculated, trackChargerClick, trackNavigationStart, trackMapLoaded } from "../lib/analytics";
 import {
   GoogleMap,
   useLoadScript,
@@ -517,6 +518,7 @@ export default function Map() {
       setChargingTimeline(timeline);
       setStations([...allStations, ...timelineChargeStops]);
       setRoutePlanned(true);
+      trackRouteCalculated({ origin, destination, stops: stops.length, model: selectedModel.name });
 
     } catch (err) {
       console.error(err);
@@ -740,14 +742,14 @@ export default function Map() {
                   mapContainerStyle={containerStyle}
                   center={center}
                   zoom={10}
-                  onLoad={(map) => setMapRef(map)}
+                  onLoad={(map) => { setMapRef(map); trackMapLoaded(); }}
                   options={{ disableDefaultUI: true }}
                 >
                   {directions && <DirectionsRenderer directions={directions} />}
                   <ChargerFilters visibleTypes={visibleTypes} toggleType={toggleType} />
                   <StationMarkers
                     stations={stations.map(s => ({ ...s, isUsedAsWaypoint: s.isUsedAsWaypoint ?? false }))}
-                    setSelectedStation={setSelectedStation}
+                    setSelectedStation={(s) => { if (s) trackChargerClick(s.title); setSelectedStation(s); }}
                     visibleTypes={visibleTypes}
                   />
 
@@ -829,6 +831,7 @@ export default function Map() {
                 <div className="absolute top-4 right-4 z-20" style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
                   <button
                     onClick={() => {
+                      trackNavigationStart();
                       const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
                       let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
                       if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;

@@ -21,3 +21,19 @@ export function trackPurchase(planName: string, value: number) {
     items: [{ item_name: planName }],
   });
 }
+
+export function trackRouteCalculated(params: { origin: string; destination: string; stops: number; model: string }) {
+  trackEvent("route_calculated", params);
+}
+
+export function trackChargerClick(chargerName: string) {
+  trackEvent("charger_click", { charger_name: chargerName });
+}
+
+export function trackNavigationStart() {
+  trackEvent("navigation_start");
+}
+
+export function trackMapLoaded() {
+  trackEvent("map_loaded");
+}
