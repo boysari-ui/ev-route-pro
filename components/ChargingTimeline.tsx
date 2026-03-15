@@ -179,18 +179,17 @@ export default function ChargingTimeline({
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0, marginLeft: 16, paddingRight: item.type === "charge" && item.stopId ? 28 : 0 }}>
                     {/* 배터리 */}
                     <div style={{ textAlign: "right" }}>
-                      {item.type !== "start" && (
-                        <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, fontWeight: 600, letterSpacing: "0.05em" }}>
-                          {item.type === "charge" ? "ARRIVAL BATTERY" : "ESTIMATED BATTERY"}
-                        </div>
-                      )}
                       <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1, color: batt.main, textShadow: `0 0 16px ${batt.glow}` }}>
                         {item.battery.toFixed(0)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
                       </div>
                       <div style={{ width: 56, height: 4, background: "#1e293b", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, item.battery))}%`, background: batt.main, borderRadius: 99 }} />
                       </div>
-                      <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 3, fontWeight: 600, letterSpacing: "0.05em" }}>BATTERY</div>
+                      {item.type !== "start" && (
+                        <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 3, fontWeight: 600, letterSpacing: "0.05em" }}>
+                          {item.type === "charge" ? "ARRIVAL BATTERY" : "ESTIMATED BATTERY"}
+                        </div>
+                      )}
                     </div>
 
                     {/* 충전 소요 시간 */}
