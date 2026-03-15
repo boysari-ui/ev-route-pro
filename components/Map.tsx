@@ -394,11 +394,18 @@ export default function Map() {
       fetchedCoords.add(`${originLatLng.lat.toFixed(1)},${originLatLng.lng.toFixed(1)}`);
 
       while (true) {
+        // Break if we can reach destination with at least 5% battery remaining
+        const remainingKm = totalKm - travelledKm;
+        if (currentBattery - remainingKm / KM_PER_PERCENT >= 5) break;
+
         const kmUntilThreshold = (currentBattery - CHARGE_THRESHOLD) * KM_PER_PERCENT;
         const chargeAtKm = travelledKm + kmUntilThreshold;
         if (chargeAtKm >= totalKm) break;
 
-        const pt = stepCoords.reduce((prev, curr) =>
+        // Only look at steps AHEAD of current position to prevent duplicate stops
+        const forwardSteps = stepCoords.filter(s => s.km > travelledKm);
+        if (forwardSteps.length === 0) break;
+        const pt = forwardSteps.reduce((prev, curr) =>
           Math.abs(curr.km - chargeAtKm) < Math.abs(prev.km - chargeAtKm) ? curr : prev
         );
 
