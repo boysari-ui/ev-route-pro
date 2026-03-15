@@ -182,7 +182,7 @@ export default function ChargingTimeline({
                       <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1, color: batt.main, textShadow: `0 0 16px ${batt.glow}` }}>
                         {item.battery.toFixed(0)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
                       </div>
-                      <div style={{ width: 56, height: 4, background: "#1e293b", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
+                      <div style={{ width: 56, height: 6, background: "#1e293b", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, item.battery))}%`, background: batt.main, borderRadius: 99 }} />
                       </div>
                       {item.type !== "start" && (
@@ -256,7 +256,7 @@ export default function ChargingTimeline({
                       }}
                     >
                       <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", letterSpacing: "0.1em" }}>
-                        ⚡ NEAREST SUPERCHARGER — PRO PLUS ONLY
+                        ⚡ PRO PLUS: Nearest Supercharger
                       </div>
                       <div style={{ fontSize: 10, color: "#e2e8f0", marginTop: 2 }}>
                         Upgrade to see nearby supercharger details
