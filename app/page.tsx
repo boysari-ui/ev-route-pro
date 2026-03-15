@@ -218,7 +218,7 @@ export default function Home() {
               Get smart charging stops and open your route instantly in Google Maps.
             </p>
             <p style={{ fontSize:"0.88rem", color:"rgba(255,255,255,0.55)", marginBottom:36 }}>
-              Plan your drive. Optimize charging. Arrive stress-free.
+              Plan your drive. Optimise charging. Arrive stress-free.
             </p>
 
             <div className="hero-btns" style={{ marginBottom:16 }}>
