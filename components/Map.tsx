@@ -13,6 +13,7 @@ import { useState, useEffect } from "react";
 import ChargerFilters from "./ChargerFilters";
 import Link from "next/link";
 import { trackRouteCalculated, trackChargerClick, trackNavigationStart, trackMapLoaded } from "../lib/analytics";
+import * as Sentry from "@sentry/nextjs";
 import {
   GoogleMap,
   useLoadScript,
@@ -521,7 +522,7 @@ export default function Map() {
       trackRouteCalculated({ origin, destination, stops: stops.length, model: selectedModel.name });
 
     } catch (err) {
-      console.error(err);
+      Sentry.captureException(err, { tags: { feature: "route_calculation" }, extra: { origin, destination, model: selectedModel?.name } });
       alert("Error calculating route.");
     } finally {
       setIsLoading(false);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export async function POST(req: NextRequest) {
   const { origin, destination } = await req.json();
@@ -12,11 +13,9 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(url);
     const data = await response.json();
-    console.log("Directions API response status:", data.status);
-
     return NextResponse.json(data);
   } catch (err) {
-    console.error("Directions API error:", err);
+    Sentry.captureException(err, { tags: { api: "directions" }, extra: { origin, destination } });
     return NextResponse.json({ error: "Failed to fetch directions" }, { status: 500 });
   }
 }
