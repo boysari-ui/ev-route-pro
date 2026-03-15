@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } from "./firebase";
+import { trackSignUp } from "../lib/analytics";
 
 interface Props {
   onClose: () => void;
@@ -33,6 +34,7 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
     setLoading(true);
     try {
       await signInWithGoogle();
+      trackSignUp("google");
       onClose();
     } catch (e: any) {
       setError("Google sign in failed. Please try again.");
@@ -49,6 +51,7 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
     try {
       if (mode === "signup") {
         await signUpWithEmail(email, password);
+        trackSignUp("email");
       } else {
         await signInWithEmail(email, password);
       }
