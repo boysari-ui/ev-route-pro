@@ -230,7 +230,7 @@ export default function Home() {
                 <span style={{ background:"rgba(16,185,129,0.2)", borderRadius:6, padding:"2px 9px", fontSize:"0.78rem", fontWeight:700 }}>Melbourne → Sydney</span>
               </button>
             </div>
-            <p style={{ fontSize:"0.78rem", color:"rgba(255,255,255,0.4)" }}>Simple EV road trip planning for Australia.</p>
+            <p style={{ fontSize:"0.78rem", color:"rgba(255,255,255,0.4)" }}>Unlike complex EV planners, EV Route Pro gives you battery-aware routes and smart charging stops in seconds — no complicated setup required.</p>
           </div>
 
           {/* Right — mockup (hidden on mobile) */}
