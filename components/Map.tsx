@@ -734,6 +734,8 @@ export default function Map() {
                 items={chargingTimeline}
                 onRemoveStop={handleRemoveStop}
                 onViewOnMap={handleViewOnMap}
+                isPro={isPro}
+                onOpenPro={openPro}
               />
             </div>
 

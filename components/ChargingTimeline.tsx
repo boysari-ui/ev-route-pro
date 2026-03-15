@@ -24,10 +24,14 @@ export default function ChargingTimeline({
   items,
   onRemoveStop,
   onViewOnMap,
+  isPro,
+  onOpenPro,
 }: {
   items: TimelineItem[];
   onRemoveStop?: (item: TimelineItem) => void;
   onViewOnMap?: (lat: number, lng: number) => void;
+  isPro?: boolean;
+  onOpenPro?: () => void;
 }) {
   const getBatteryColor = (pct: number) => {
     if (pct >= 50) return { main: "#22c55e", glow: "rgba(34,197,94,0.35)" };
@@ -207,40 +211,59 @@ export default function ChargingTimeline({
 
                 {/* Nearest Supercharger */}
                 {item.type === "charge" && item.nearestSupercharger && (
-                  <div style={{
-                    marginTop: 10, padding: "8px 12px",
-                    background: "rgba(239,68,68,0.07)", borderRadius: 10,
-                    border: "1px solid rgba(239,68,68,0.15)",
-                  }}>
-                    <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", letterSpacing: "0.1em", marginBottom: 3 }}>
-                      ⚡ NEAREST SUPERCHARGER AVAILABLE
-                    </div>
-                    <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>
-                      {item.nearestSupercharger.title}
-                    </div>
-                    {item.nearestSupercharger.address && (
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>
-                        {item.nearestSupercharger.address}
+                  isPro ? (
+                    <div style={{
+                      marginTop: 10, padding: "8px 12px",
+                      background: "rgba(239,68,68,0.07)", borderRadius: 10,
+                      border: "1px solid rgba(239,68,68,0.15)",
+                    }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", letterSpacing: "0.1em", marginBottom: 3 }}>
+                        ⚡ NEAREST SUPERCHARGER AVAILABLE
                       </div>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-                      {item.nearestSupercharger.estimatedChargeTime !== undefined && (
-                        <div style={{ fontSize: 10, color: "#94a3b8" }}>
-                          ~{formatTime(item.nearestSupercharger.estimatedChargeTime)} charge time
+                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>
+                        {item.nearestSupercharger.title}
+                      </div>
+                      {item.nearestSupercharger.address && (
+                        <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>
+                          {item.nearestSupercharger.address}
                         </div>
                       )}
-                      <button
-                        onClick={() => onViewOnMap?.(item.nearestSupercharger!.lat, item.nearestSupercharger!.lng)}
-                        style={{
-                          fontSize: 10, color: "#a78bfa", fontWeight: 600,
-                          background: "none", border: "none", cursor: "pointer",
-                          padding: 0, textDecoration: "underline",
-                        }}
-                      >
-                        📍 View on map
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+                        {item.nearestSupercharger.estimatedChargeTime !== undefined && (
+                          <div style={{ fontSize: 10, color: "#94a3b8" }}>
+                            ~{formatTime(item.nearestSupercharger.estimatedChargeTime)} charge time
+                          </div>
+                        )}
+                        <button
+                          onClick={() => onViewOnMap?.(item.nearestSupercharger!.lat, item.nearestSupercharger!.lng)}
+                          style={{
+                            fontSize: 10, color: "#a78bfa", fontWeight: 600,
+                            background: "none", border: "none", cursor: "pointer",
+                            padding: 0, textDecoration: "underline",
+                          }}
+                        >
+                          📍 View on map
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <button
+                      onClick={onOpenPro}
+                      style={{
+                        marginTop: 10, width: "100%", padding: "8px 12px",
+                        background: "rgba(251,191,36,0.07)", borderRadius: 10,
+                        border: "1px solid rgba(251,191,36,0.2)",
+                        cursor: "pointer", textAlign: "left",
+                      }}
+                    >
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.1em" }}>
+                        ⚡ NEAREST SUPERCHARGER — PRO PLUS ONLY
+                      </div>
+                      <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
+                        Upgrade to see nearby supercharger details
+                      </div>
+                    </button>
+                  )
                 )}
 
                 {/* Charge tip */}
