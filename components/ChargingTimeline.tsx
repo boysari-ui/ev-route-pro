@@ -31,7 +31,7 @@ export default function ChargingTimeline({
 }) {
   const getBatteryColor = (pct: number) => {
     if (pct >= 50) return { main: "#22c55e", glow: "rgba(34,197,94,0.35)" };
-    if (pct >= 25) return { main: "#f59e0b", glow: "rgba(245,158,11,0.35)" };
+    if (pct >= 15) return { main: "#f59e0b", glow: "rgba(245,158,11,0.35)" };
     return { main: "#ef4444", glow: "rgba(239,68,68,0.35)" };
   };
 
