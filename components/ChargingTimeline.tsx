@@ -71,11 +71,11 @@ export default function ChargingTimeline({
             fontSize: 11, fontWeight: 800, color: "white", letterSpacing: "0.08em",
             boxShadow: "0 4px 12px rgba(16,185,129,0.35)",
           }}>TRIP PLAN</div>
-          <span style={{ color: "#475569", fontSize: 12 }}>
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>
             {items.filter(i => i.type === "charge").length} charging stop{items.filter(i => i.type === "charge").length !== 1 ? "s" : ""}
           </span>
         </div>
-        <div style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
           {items.length} waypoints
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function ChargingTimeline({
                     </div>
 
                     {item.type === "charge" && (
-                      <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, fontStyle: "italic" }}>
+                      <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontStyle: "italic" }}>
                         Nearest charger on route
                       </div>
                     )}
@@ -180,7 +180,7 @@ export default function ChargingTimeline({
                     {/* 배터리 */}
                     <div style={{ textAlign: "right" }}>
                       {item.type !== "start" && (
-                        <div style={{ fontSize: 9, color: "#475569", marginBottom: 2, fontWeight: 600, letterSpacing: "0.05em" }}>
+                        <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, fontWeight: 600, letterSpacing: "0.05em" }}>
                           {item.type === "charge" ? "ARRIVAL BATTERY" : "ESTIMATED BATTERY"}
                         </div>
                       )}
@@ -190,7 +190,7 @@ export default function ChargingTimeline({
                       <div style={{ width: 56, height: 4, background: "#1e293b", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, item.battery))}%`, background: batt.main, borderRadius: 99 }} />
                       </div>
-                      <div style={{ fontSize: 9, color: "#334155", marginTop: 3, fontWeight: 600, letterSpacing: "0.05em" }}>BATTERY</div>
+                      <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 3, fontWeight: 600, letterSpacing: "0.05em" }}>BATTERY</div>
                     </div>
 
                     {/* 충전 소요 시간 */}
@@ -251,15 +251,15 @@ export default function ChargingTimeline({
                       onClick={onOpenPro}
                       style={{
                         marginTop: 10, width: "100%", padding: "8px 12px",
-                        background: "rgba(251,191,36,0.07)", borderRadius: 10,
-                        border: "1px solid rgba(251,191,36,0.2)",
+                        background: "rgba(239,68,68,0.07)", borderRadius: 10,
+                        border: "1px solid rgba(239,68,68,0.15)",
                         cursor: "pointer", textAlign: "left",
                       }}
                     >
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.1em" }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", letterSpacing: "0.1em" }}>
                         ⚡ NEAREST SUPERCHARGER — PRO PLUS ONLY
                       </div>
-                      <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
+                      <div style={{ fontSize: 10, color: "#e2e8f0", marginTop: 2 }}>
                         Upgrade to see nearby supercharger details
                       </div>
                     </button>
