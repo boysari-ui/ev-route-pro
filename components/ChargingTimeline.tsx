@@ -152,7 +152,7 @@ export default function ChargingTimeline({
 
                     {item.type === "charge" && (
                       <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontStyle: "italic" }}>
-                        Nearest charger on route
+                        Nearest charger on route · planned stop when battery reaches 20%
                       </div>
                     )}
 

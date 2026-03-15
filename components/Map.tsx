@@ -787,6 +787,9 @@ export default function Map() {
                         {selectedStation.batteryAfterReach !== undefined && (
                           <div style={{ color: "#333", marginBottom: 2 }}>
                             🔋 Arrival: <strong>{selectedStation.batteryAfterReach.toFixed(1)}%</strong>
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
+                              Estimated battery when your route reaches this area
+                            </div>
                           </div>
                         )}
                         {selectedStation.estimatedChargeTime !== undefined && (
