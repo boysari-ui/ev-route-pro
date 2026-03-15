@@ -274,12 +274,22 @@ export default function Map() {
       }, routeStepCoords[0] || { km: 0, lat: 0, lng: 0 }).km;
     };
 
+    // Sort: start first → charge stops by km position → arrival last
+    const startItems = newTimeline.filter(i => i.type === "start");
+    const chargeItems = newTimeline.filter(i => i.type === "charge").sort((a, b) => {
+      const aKm = a.lat && a.lng ? getKmForCoord(a.lat, a.lng) : routeTotalKm;
+      const bKm = b.lat && b.lng ? getKmForCoord(b.lat, b.lng) : routeTotalKm;
+      return aKm - bKm;
+    });
+    const arrivalItems = newTimeline.filter(i => i.type === "arrival");
+    const sorted = [...startItems, ...chargeItems, ...arrivalItems];
+
     let battery = startBattery;
     let lastKm = 0;
-    const updated = newTimeline.map(item => {
+    const updated = sorted.map(item => {
       if (item.type === "start") return item;
       const itemKm = item.lat && item.lng ? getKmForCoord(item.lat, item.lng) : routeTotalKm;
-      const kmDriven = itemKm - lastKm;
+      const kmDriven = Math.max(0, itemKm - lastKm);
       battery = Math.max(0, battery - kmDriven / KM_PER_PERCENT);
       const updatedItem = { ...item, battery: parseFloat(battery.toFixed(1)) };
       if (item.type === "charge") {
@@ -793,7 +803,6 @@ export default function Map() {
                               setStations(u);
                               setSelectedStation({ ...selectedStation, isUsedAsWaypoint: true });
                               setChargingTimeline(prev => {
-                                const arrivalIdx = prev.findIndex(i => i.type === "arrival");
                                 const newStop: TimelineItem = {
                                   type: "charge",
                                   battery: selectedStation.batteryAfterReach ?? 20,
@@ -804,8 +813,8 @@ export default function Map() {
                                   lat: selectedStation.lat,
                                   lng: selectedStation.lng,
                                 };
-                                if (arrivalIdx === -1) return recalcArrivalBattery([...prev, newStop]);
-                                const next = [...prev]; next.splice(arrivalIdx, 0, newStop); return recalcArrivalBattery(next);
+                                // recalcArrivalBattery will sort stops by km position automatically
+                                return recalcArrivalBattery([...prev, newStop]);
                               });
                             }}
                           >+ Add as Charging Stop</button>
