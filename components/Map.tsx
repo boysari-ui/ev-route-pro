@@ -435,6 +435,9 @@ export default function Map() {
         const coordKey = `${pt.lat.toFixed(1)},${pt.lng.toFixed(1)}`;
 
         let chargeLocationName: string | null = null;
+        let chargeStationAddress = "";
+        let chargeStationSpeed: string | undefined;
+        let chargeStationCost: string | undefined;
         let chargeLat = pt.lat;
         let chargeLng = pt.lng;
         let chargeStationType: "Supercharger" | "Standard" = "Standard";
@@ -466,7 +469,10 @@ export default function Map() {
           if (closestStation) {
             const preferred = (isPro && closestSupercharger) ? closestSupercharger : closestStation;
             const st = preferred as ChargePoint;
-            chargeLocationName = [st.title, st.address].filter(Boolean).join(", ");
+            chargeLocationName = st.title;
+            chargeStationAddress = st.address || "";
+            chargeStationSpeed = st.speed;
+            chargeStationCost = st.cost;
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
@@ -498,7 +504,10 @@ export default function Map() {
           });
           if (closestStation) {
             const st = closestStation as ChargePoint;
-            chargeLocationName = [st.title, st.address].filter(Boolean).join(", ");
+            chargeLocationName = st.title;
+            chargeStationAddress = st.address || "";
+            chargeStationSpeed = st.speed;
+            chargeStationCost = st.cost;
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
@@ -541,7 +550,9 @@ export default function Map() {
           lng: chargeLng,
           title: chargeLocationName,
           type: "Selected Stop",
-          address: "", // title already contains full address — avoid doubling on re-add
+          address: chargeStationAddress,
+          speed: chargeStationSpeed,
+          cost: chargeStationCost,
           isUsedAsWaypoint: true,
           batteryAfterReach: batteryOnArrival,
           estimatedChargeTime: chargeTime,
@@ -824,9 +835,9 @@ export default function Map() {
                         })()}
                         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{selectedStation.title}</div>
                         <div style={{ color: "#444", marginBottom: 2 }}>🔌 {selectedStation.type}</div>
-                        <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>
-                        <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>
-                        <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>
+                        {selectedStation.speed && <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>}
+                        {selectedStation.cost && <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>}
+                        {selectedStation.address && <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>}
                         {selectedStation.batteryAfterReach !== undefined && (() => {
                           const timelineMatch = chargingTimeline.find(i =>
                             i.stopId === selectedStation.id ||
