@@ -803,6 +803,25 @@ export default function Map() {
                       onCloseClick={() => setSelectedStation(null)}
                     >
                       <div style={{ minWidth: 220, maxWidth: 280, fontSize: 14, lineHeight: 1.6 }}>
+                        {/* Off-route warning */}
+                        {routePlanned && routeStepCoords.length > 0 && (() => {
+                          let minDist = Infinity;
+                          for (let i = 0; i < routeStepCoords.length - 1; i++) {
+                            const A = routeStepCoords[i];
+                            const B = routeStepCoords[i + 1];
+                            const dx = B.lat - A.lat, dy = B.lng - A.lng;
+                            const lenSq = dx * dx + dy * dy;
+                            const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((selectedStation.lat - A.lat) * dx + (selectedStation.lng - A.lng) * dy) / lenSq));
+                            const d = computeDistanceKm(selectedStation.lat, selectedStation.lng, A.lat + t * dx, A.lng + t * dy);
+                            if (d < minDist) minDist = d;
+                          }
+                          if (minDist > 30) return (
+                            <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "6px 10px", marginBottom: 8, fontSize: 11, color: "#92400e" }}>
+                              ⚠️ This stop is ~{Math.round(minDist)}km from your route — order and battery estimates may be inaccurate
+                            </div>
+                          );
+                          return null;
+                        })()}
                         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{selectedStation.title}</div>
                         <div style={{ color: "#444", marginBottom: 2 }}>🔌 {selectedStation.type}</div>
                         <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>
