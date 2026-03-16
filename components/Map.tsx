@@ -362,7 +362,7 @@ export default function Map() {
       const response = await fetch("/api/route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ origin, destination }),
+        body: JSON.stringify({ origin, destination, stops: stops.filter(Boolean) }),
       });
 
       const res = await response.json();
@@ -373,7 +373,12 @@ export default function Map() {
       }
 
       new window.google.maps.DirectionsService().route(
-        { origin, destination, travelMode: window.google.maps.TravelMode.DRIVING },
+        {
+          origin,
+          destination,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          waypoints: stops.filter(Boolean).map((s: string) => ({ location: s, stopover: true })),
+        },
         (result: any, status: string) => { if (status === "OK" && result) setDirections(result); }
       );
 
