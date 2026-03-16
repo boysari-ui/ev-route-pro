@@ -9,7 +9,7 @@ interface NearestSupercharger {
 }
 
 type TimelineItem = {
-  type: "start" | "charge" | "arrival";
+  type: "start" | "charge" | "waypoint" | "arrival";
   location: string;
   battery: number;
   stationType?: "Supercharger" | "Standard";
@@ -47,9 +47,10 @@ export default function ChargingTimeline({
   };
 
   const config = {
-    start:   { icon: "🚗", label: "DEPARTURE",     accent: "#60a5fa", glow: "rgba(96,165,250,0.3)",   bg: "rgba(59,130,246,0.08)",  border: "rgba(96,165,250,0.2)"  },
-    charge:  { icon: "⚡", label: "CHARGING STOP", accent: "#fbbf24", glow: "rgba(251,191,36,0.3)",  bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.25)" },
-    arrival: { icon: "🏁", label: "ARRIVAL",       accent: "#a78bfa", glow: "rgba(167,139,250,0.3)", bg: "rgba(139,92,246,0.08)",  border: "rgba(167,139,250,0.2)" },
+    start:    { icon: "🚗", label: "DEPARTURE",     accent: "#60a5fa", glow: "rgba(96,165,250,0.3)",   bg: "rgba(59,130,246,0.08)",  border: "rgba(96,165,250,0.2)"  },
+    charge:   { icon: "⚡", label: "CHARGING STOP", accent: "#fbbf24", glow: "rgba(251,191,36,0.3)",  bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.25)" },
+    waypoint: { icon: "📍", label: "WAYPOINT",      accent: "#34d399", glow: "rgba(52,211,153,0.3)",  bg: "rgba(52,211,153,0.07)",  border: "rgba(52,211,153,0.2)"  },
+    arrival:  { icon: "🏁", label: "ARRIVAL",       accent: "#a78bfa", glow: "rgba(167,139,250,0.3)", bg: "rgba(139,92,246,0.08)",  border: "rgba(167,139,250,0.2)" },
   };
 
   if (items.length === 0) return null;
@@ -187,7 +188,7 @@ export default function ChargingTimeline({
                       </div>
                       {item.type !== "start" && (
                         <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 3, fontWeight: 600, letterSpacing: "0.05em" }}>
-                          {item.type === "charge" ? "ARRIVAL BATTERY" : "ESTIMATED BATTERY"}
+                          {item.type === "charge" ? "ARRIVAL BATTERY" : item.type === "waypoint" ? "PASSING BATTERY" : "ESTIMATED BATTERY"}
                         </div>
                       )}
                       {item.type === "charge" && item.battery < 10 && (

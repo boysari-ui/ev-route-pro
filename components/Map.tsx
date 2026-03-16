@@ -34,7 +34,7 @@ interface NearestSupercharger {
 }
 
 interface TimelineItem {
-  type: "start" | "charge" | "arrival";
+  type: "start" | "charge" | "waypoint" | "arrival";
   battery: number;
   location: string;
   lat?: number;
@@ -299,11 +299,12 @@ export default function Map() {
       return routeTotalKm;
     };
 
-    // Sort: start first → charge stops by km position → arrival last
+    // Sort: start first → charge/waypoint stops by km position → arrival last
     const startItems = newTimeline.filter(i => i.type === "start");
-    const chargeItems = newTimeline.filter(i => i.type === "charge").sort((a, b) => getItemKm(a) - getItemKm(b));
+    const midItems = newTimeline.filter(i => i.type === "charge" || i.type === "waypoint")
+      .sort((a, b) => getItemKm(a) - getItemKm(b));
     const arrivalItems = newTimeline.filter(i => i.type === "arrival");
-    const sorted = [...startItems, ...chargeItems, ...arrivalItems];
+    const sorted = [...startItems, ...midItems, ...arrivalItems];
 
     let battery = startBattery;
     let lastKm = 0;
@@ -315,6 +316,8 @@ export default function Map() {
       const updatedItem = { ...item, battery: parseFloat(battery.toFixed(1)) };
       if (item.type === "charge") {
         battery = CHARGE_TARGET;
+        lastKm = itemKm;
+      } else if (item.type === "waypoint") {
         lastKm = itemKm;
       }
       return updatedItem;
@@ -570,10 +573,37 @@ export default function Map() {
         travelledKm = chargeAtKm;
       }
 
-      const kmLeft = totalKm - travelledKm;
-      const remainingBattery = Math.max(0, currentBattery - kmLeft / KM_PER_PERCENT);
-      timeline.push({ type: "arrival", battery: remainingBattery, location: destination });
-      setChargingTimeline(timeline);
+      // Insert user waypoints at their leg-boundary km positions
+      const validStops = stops.filter(Boolean);
+      let legCumKm = 0;
+      for (let i = 0; i < validStops.length; i++) {
+        legCumKm += (routeLegs[i]?.distance?.value || 0) / 1000;
+        timeline.push({ type: "waypoint", battery: 0, location: validStops[i], routeKm: legCumKm });
+      }
+
+      timeline.push({ type: "arrival", battery: 0, location: destination, routeKm: totalKm });
+
+      // Sort and recalculate battery for all items
+      const startItems2 = timeline.filter(i => i.type === "start");
+      const midItems2 = timeline.filter(i => i.type === "charge" || i.type === "waypoint")
+        .sort((a, b) => (a.routeKm ?? totalKm) - (b.routeKm ?? totalKm));
+      const arrivalItems2 = timeline.filter(i => i.type === "arrival");
+      const sortedTimeline = [...startItems2, ...midItems2, ...arrivalItems2];
+
+      let batt = startBattery;
+      let lastKm2 = 0;
+      const finalTimeline = sortedTimeline.map(item => {
+        if (item.type === "start") return item;
+        const itemKm = item.routeKm ?? totalKm;
+        const kmDriven = Math.max(0, itemKm - lastKm2);
+        batt = Math.max(0, batt - kmDriven / KM_PER_PERCENT);
+        const updated = { ...item, battery: parseFloat(batt.toFixed(1)) };
+        if (item.type === "charge") { batt = CHARGE_TARGET; lastKm2 = itemKm; }
+        else if (item.type === "waypoint") { lastKm2 = itemKm; }
+        return updated;
+      });
+
+      setChargingTimeline(finalTimeline);
       setStations([...allStations, ...timelineChargeStops]);
       setRoutePlanned(true);
       trackRouteCalculated({ origin, destination, stops: stops.length, model: selectedModel.name });
