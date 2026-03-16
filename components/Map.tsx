@@ -844,6 +844,11 @@ export default function Map() {
                                   ℹ️ Add this stop to your trip plan for an accurate estimate
                                 </div>
                               )}
+                              {timelineMatch && displayBattery < 10 && (
+                                <div style={{ fontSize: 11, color: "#d93025", marginTop: 3, fontWeight: 600 }}>
+                                  ⚠️ Low battery — consider adding a charging stop before this point
+                                </div>
+                              )}
                             </div>
                           );
                         })()}

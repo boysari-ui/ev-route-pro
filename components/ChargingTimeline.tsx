@@ -190,6 +190,11 @@ export default function ChargingTimeline({
                           {item.type === "charge" ? "ARRIVAL BATTERY" : "ESTIMATED BATTERY"}
                         </div>
                       )}
+                      {item.type === "charge" && item.battery < 10 && (
+                        <div style={{ fontSize: 10, color: "#f87171", marginTop: 4, fontWeight: 700, textAlign: "right" }}>
+                          ⚠️ Low battery
+                        </div>
+                      )}
                     </div>
 
                     {/* 충전 소요 시간 */}
