@@ -11,6 +11,7 @@ interface NearestSupercharger {
 type TimelineItem = {
   type: "start" | "charge" | "waypoint" | "arrival";
   location: string;
+  address?: string;
   battery: number;
   stationType?: "Supercharger" | "Standard";
   nearestSupercharger?: NearestSupercharger;
@@ -158,8 +159,11 @@ export default function ChargingTimeline({
                     )}
 
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 600, whiteSpace: "normal", wordBreak: "break-word" }}>
-                        {item.location}
+                      <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                        <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 600 }}>{item.location}</div>
+                        {item.address && (
+                          <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 2 }}>{item.address}</div>
+                        )}
                       </div>
                       {item.type === "charge" && item.lat && item.lng && (
                         <button

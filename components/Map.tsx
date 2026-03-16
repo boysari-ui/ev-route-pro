@@ -37,6 +37,7 @@ interface TimelineItem {
   type: "start" | "charge" | "waypoint" | "arrival";
   battery: number;
   location: string;
+  address?: string;
   lat?: number;
   lng?: number;
   stationType?: "Supercharger" | "Standard";
@@ -544,6 +545,7 @@ export default function Map() {
           type: "charge",
           battery: batteryOnArrival,
           location: chargeLocationName,
+          address: chargeStationAddress,
           lat: chargeLat,
           lng: chargeLng,
           stationType: chargeStationType,
