@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const waypointsParam = stops && stops.length > 0
       ? `&waypoints=${stops.map((s: string) => encodeURIComponent(s)).join("|")}`
       : "";
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypointsParam}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypointsParam}&key=${process.env.GOOGLE_MAPS_SERVER_KEY}`;
 
     const response = await fetch(url);
     const data = await response.json();
