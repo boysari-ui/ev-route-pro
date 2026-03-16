@@ -58,6 +58,8 @@ interface ChargePoint {
   isUsedAsWaypoint?: boolean;
   batteryAfterReach?: number;
   estimatedChargeTime?: number;
+  chargerType?: "Supercharger" | "Standard"; // preserved original type for Selected Stop markers
+  routeKm?: number; // exact km along route for accurate recalc
 }
 
 interface SavedRoute {
@@ -523,10 +525,12 @@ export default function Map() {
           lng: chargeLng,
           title: chargeLocationName,
           type: "Selected Stop",
-          address: chargeLocationName,
+          address: "", // title already contains full address — avoid doubling on re-add
           isUsedAsWaypoint: true,
           batteryAfterReach: batteryOnArrival,
           estimatedChargeTime: chargeTime,
+          chargerType: chargeStationType,
+          routeKm: chargeAtKm,
         };
         timelineChargeStops.push(stopMarker);
 
@@ -820,12 +824,17 @@ export default function Map() {
                                 const newStop: TimelineItem = {
                                   type: "charge",
                                   battery: selectedStation.batteryAfterReach ?? 20,
-                                  location: [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
-                                  stationType: selectedStation.type === "Supercharger" ? "Supercharger" : "Standard",
+                                  // avoid doubling address for Selected Stop markers
+                                  location: selectedStation.type === "Selected Stop"
+                                    ? selectedStation.title
+                                    : [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
+                                  // preserve original charger type (Supercharger vs Standard)
+                                  stationType: selectedStation.chargerType ?? (selectedStation.type === "Supercharger" ? "Supercharger" : "Standard"),
                                   estimatedChargeTime: selectedStation.estimatedChargeTime,
                                   stopId: selectedStation.id,
                                   lat: selectedStation.lat,
                                   lng: selectedStation.lng,
+                                  routeKm: selectedStation.routeKm, // preserve exact km for accurate battery recalc
                                 };
                                 // recalcArrivalBattery will sort stops by km position automatically
                                 return recalcArrivalBattery([...prev, newStop]);
