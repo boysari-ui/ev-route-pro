@@ -648,7 +648,15 @@ export default function Map() {
       });
 
       setChargingTimeline(finalTimeline);
-      setStations([...allStations, ...timelineChargeStops]);
+      // Deduplicate by id — duplicate keys cause React markers to ignore filter state changes
+      const allCombined = [...allStations, ...timelineChargeStops];
+      const seenIds = new Set<string>();
+      const dedupedStations = allCombined.filter(s => {
+        if (seenIds.has(s.id)) return false;
+        seenIds.add(s.id);
+        return true;
+      });
+      setStations(dedupedStations);
       setRoutePlanned(true);
       trackRouteCalculated({ origin, destination, stops: stops.length, model: selectedModel.name });
 
