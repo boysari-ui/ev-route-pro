@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Map from "@/components/Map";
+import dynamic from "next/dynamic";
+const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import AuthModal from "@/components/AuthModal";
 import AuthBar from "@/components/AuthBar";
