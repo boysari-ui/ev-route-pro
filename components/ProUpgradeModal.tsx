@@ -4,9 +4,10 @@ import { useAuth } from "./useAuth";
 
 interface Props {
   onClose: () => void;
+  limitReached?: boolean;
 }
 
-export default function ProUpgradeModal({ onClose }: Props) {
+export default function ProUpgradeModal({ onClose, limitReached }: Props) {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
@@ -66,6 +67,15 @@ export default function ProUpgradeModal({ onClose }: Props) {
           <div style={{ color: "#64748b", fontSize: 14, marginTop: 6 }}>
             Plan smarter, charge faster
           </div>
+          {limitReached && (
+            <div style={{
+              marginTop: 12, padding: "10px 16px",
+              background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 10, color: "#fca5a5", fontSize: 13, fontWeight: 600,
+            }}>
+              You've reached the free limit. Upgrade to continue planning EV routes.
+            </div>
+          )}
         </div>
 
         {/* Comparison Table */}

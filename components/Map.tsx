@@ -104,6 +104,7 @@ export default function Map() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
   const [showPro, setShowPro] = useState(false);
+  const [proLimitReached, setProLimitReached] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [pendingSharedRoute, setPendingSharedRoute] = useState<{from: string, to: string} | null>(null);
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
@@ -114,8 +115,8 @@ export default function Map() {
 
   const openAuth = (mode: "signin" | "signup") => { setAuthMode(mode); setShowAuth(true); setModalOpen(true); };
   const closeAuth = () => { setShowAuth(false); setModalOpen(false); };
-  const openPro = () => { setShowPro(true); setModalOpen(true); };
-  const closePro = () => { setShowPro(false); setModalOpen(false); };
+  const openPro = (limitReached = false) => { setProLimitReached(limitReached); setShowPro(true); setModalOpen(true); };
+  const closePro = () => { setShowPro(false); setProLimitReached(false); setModalOpen(false); };
   const openProfile = () => { setShowProfile(true); setModalOpen(true); };
   const closeProfile = () => { setShowProfile(false); setModalOpen(false); };
 
@@ -367,7 +368,7 @@ export default function Map() {
         if (!user) {
           openAuth("signup");
         } else {
-          openPro();
+          openPro(true);
         }
         return;
       }
@@ -678,7 +679,7 @@ export default function Map() {
     <div style={{ position: "relative", zIndex: 0, minHeight: "100vh", background: "linear-gradient(to right, #059669, #22c55e)", display: "flex", flexDirection: "column" }}>
       {/* 모달 - 블러 밖 최상위 */}
       {showAuth && <AuthModal onClose={closeAuth} defaultMode={authMode} />}
-      {showPro && <ProUpgradeModal onClose={closePro} />}
+      {showPro && <ProUpgradeModal onClose={closePro} limitReached={proLimitReached} />}
       {showProfile && (
         <ProfilePage
           onClose={closeProfile}
