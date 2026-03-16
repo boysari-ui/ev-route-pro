@@ -225,9 +225,9 @@ export default function Map() {
     setSavedRoutes(updated);
   };
 
-  const fetchStations = async (lat: number, lng: number): Promise<ChargePoint[]> => {
+  const fetchStations = async (lat: number, lng: number, distance = 50): Promise<ChargePoint[]> => {
     try {
-      const res = await fetch(`/api/stations?lat=${lat}&lng=${lng}&distance=50`);
+      const res = await fetch(`/api/stations?lat=${lat}&lng=${lng}&distance=${distance}`);
       const data = await res.json();
       if (!Array.isArray(data)) return [];
       return data.map((d: any) => ({
@@ -573,26 +573,45 @@ export default function Map() {
         travelledKm = chargeAtKm;
       }
 
-      // Fetch stations along any remaining route segments (after last charge stop)
-      // so the map shows chargers even when no charging stop is needed
-      const remainingAfterLastCharge = totalKm - travelledKm;
-      if (remainingAfterLastCharge > 80) {
-        // Fetch at ~50km intervals in the remaining segment
-        for (let fetchKm = travelledKm + 80; fetchKm < totalKm - 30; fetchKm += 100) {
+      // Fetch stations along all remaining route segments so the map shows chargers
+      // even when no charging stop is needed — 60km intervals, 100km radius
+      const fetchGapStations = async (fromKm: number, toKm: number, battAtFrom: number) => {
+        for (let fetchKm = fromKm + 60; fetchKm < toKm - 20; fetchKm += 60) {
           const nearPt = stepCoords.reduce((prev, curr) =>
             Math.abs(curr.km - fetchKm) < Math.abs(prev.km - fetchKm) ? curr : prev
           );
           const key = `${nearPt.lat.toFixed(1)},${nearPt.lng.toFixed(1)}`;
           if (!fetchedCoords.has(key)) {
             fetchedCoords.add(key);
-            const nearbyS = await fetchStations(nearPt.lat, nearPt.lng);
-            const battHere = Math.max(0, currentBattery - (fetchKm - travelledKm) / KM_PER_PERCENT);
+            const nearbyS = await fetchStations(nearPt.lat, nearPt.lng, 100);
+            const battHere = Math.max(0, battAtFrom - (fetchKm - fromKm) / KM_PER_PERCENT);
             nearbyS.forEach(s => {
               s.batteryAfterReach = battHere;
               s.estimatedChargeTime = calculateChargeTime(s.type, s.batteryAfterReach!, batteryKWh);
             });
             allStations.push(...nearbyS);
           }
+        }
+      };
+      await fetchGapStations(travelledKm, totalKm, currentBattery);
+
+      // Also fetch at each waypoint location
+      const validStopsForFetch = stops.filter(Boolean);
+      let legKmAcc = 0;
+      for (let i = 0; i < validStopsForFetch.length; i++) {
+        legKmAcc += (routeLegs[i]?.distance?.value || 0) / 1000;
+        const wpPt = stepCoords.reduce((prev, curr) =>
+          Math.abs(curr.km - legKmAcc) < Math.abs(prev.km - legKmAcc) ? curr : prev
+        );
+        const wpKey = `wp-${i}`;
+        if (!fetchedCoords.has(wpKey)) {
+          fetchedCoords.add(wpKey);
+          const wpStations = await fetchStations(wpPt.lat, wpPt.lng, 50);
+          wpStations.forEach(s => {
+            s.batteryAfterReach = 0;
+            s.estimatedChargeTime = calculateChargeTime(s.type, 0, batteryKWh);
+          });
+          allStations.push(...wpStations);
         }
       }
 
