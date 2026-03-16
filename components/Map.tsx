@@ -43,6 +43,7 @@ interface TimelineItem {
   nearestSupercharger?: NearestSupercharger;
   stopId?: string;
   estimatedChargeTime?: number;
+  routeKm?: number; // exact km along route — set during initial calculation
 }
 
 interface ChargePoint {
@@ -274,13 +275,15 @@ export default function Map() {
       }, routeStepCoords[0] || { km: 0, lat: 0, lng: 0 }).km;
     };
 
+    const getItemKm = (item: TimelineItem) => {
+      if (item.routeKm !== undefined) return item.routeKm;
+      if (item.lat && item.lng) return getKmForCoord(item.lat, item.lng);
+      return routeTotalKm;
+    };
+
     // Sort: start first → charge stops by km position → arrival last
     const startItems = newTimeline.filter(i => i.type === "start");
-    const chargeItems = newTimeline.filter(i => i.type === "charge").sort((a, b) => {
-      const aKm = a.lat && a.lng ? getKmForCoord(a.lat, a.lng) : routeTotalKm;
-      const bKm = b.lat && b.lng ? getKmForCoord(b.lat, b.lng) : routeTotalKm;
-      return aKm - bKm;
-    });
+    const chargeItems = newTimeline.filter(i => i.type === "charge").sort((a, b) => getItemKm(a) - getItemKm(b));
     const arrivalItems = newTimeline.filter(i => i.type === "arrival");
     const sorted = [...startItems, ...chargeItems, ...arrivalItems];
 
@@ -288,7 +291,7 @@ export default function Map() {
     let lastKm = 0;
     const updated = sorted.map(item => {
       if (item.type === "start") return item;
-      const itemKm = item.lat && item.lng ? getKmForCoord(item.lat, item.lng) : routeTotalKm;
+      const itemKm = getItemKm(item);
       const kmDriven = Math.max(0, itemKm - lastKm);
       battery = Math.max(0, battery - kmDriven / KM_PER_PERCENT);
       const updatedItem = { ...item, battery: parseFloat(battery.toFixed(1)) };
@@ -511,6 +514,7 @@ export default function Map() {
           nearestSupercharger,
           stopId,
           estimatedChargeTime: chargeTime,
+          routeKm: chargeAtKm,
         });
 
         const stopMarker: ChargePoint = {
