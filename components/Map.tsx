@@ -573,6 +573,29 @@ export default function Map() {
         travelledKm = chargeAtKm;
       }
 
+      // Fetch stations along any remaining route segments (after last charge stop)
+      // so the map shows chargers even when no charging stop is needed
+      const remainingAfterLastCharge = totalKm - travelledKm;
+      if (remainingAfterLastCharge > 80) {
+        // Fetch at ~50km intervals in the remaining segment
+        for (let fetchKm = travelledKm + 80; fetchKm < totalKm - 30; fetchKm += 100) {
+          const nearPt = stepCoords.reduce((prev, curr) =>
+            Math.abs(curr.km - fetchKm) < Math.abs(prev.km - fetchKm) ? curr : prev
+          );
+          const key = `${nearPt.lat.toFixed(1)},${nearPt.lng.toFixed(1)}`;
+          if (!fetchedCoords.has(key)) {
+            fetchedCoords.add(key);
+            const nearbyS = await fetchStations(nearPt.lat, nearPt.lng);
+            const battHere = Math.max(0, currentBattery - (fetchKm - travelledKm) / KM_PER_PERCENT);
+            nearbyS.forEach(s => {
+              s.batteryAfterReach = battHere;
+              s.estimatedChargeTime = calculateChargeTime(s.type, s.batteryAfterReach!, batteryKWh);
+            });
+            allStations.push(...nearbyS);
+          }
+        }
+      }
+
       // Insert user waypoints at their leg-boundary km positions
       const validStops = stops.filter(Boolean);
       let legCumKm = 0;
