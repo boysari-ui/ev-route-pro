@@ -70,7 +70,8 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch (err: any) {
-    console.error("Firestore error:", err.message);
+    // Return 500 so Stripe retries the webhook
+    return NextResponse.json({ error: "Internal error processing webhook" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

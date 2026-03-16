@@ -349,26 +349,24 @@ export default function Map() {
       return;
     }
 
-    // 1일 10회 제한 (Pro Plus는 무제한)
-    if (!isPro) {
-      const today = new Date().toDateString();
-      const stored = JSON.parse(localStorage.getItem("ev_route_usage") || "{}");
-      const count = stored.date === today ? stored.count : 0;
-      if (count >= 10) {
-        openPro();
-        return;
-      }
-      localStorage.setItem("ev_route_usage", JSON.stringify({ date: today, count: count + 1 }));
-    }
-
     setIsLoading(true);
     setVisibleTypes(new Set(["Selected Stop"]));
     try {
+      const idToken = user ? await user.getIdToken() : null;
       const response = await fetch("/api/route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({ origin, destination, stops: stops.filter(Boolean) }),
       });
+
+      if (response.status === 429) {
+        setIsLoading(false);
+        openPro();
+        return;
+      }
 
       const res = await response.json();
       if (!res.routes || res.routes.length === 0) {
