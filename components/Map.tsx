@@ -270,11 +270,27 @@ export default function Map() {
     const CHARGE_TARGET = 100;
 
     const getKmForCoord = (lat: number, lng: number) => {
-      if (!lat || !lng) return routeTotalKm;
-      return routeStepCoords.reduce((best, pt) => {
-        const d = computeDistanceKm(lat, lng, pt.lat, pt.lng);
-        return d < computeDistanceKm(lat, lng, best.lat, best.lng) ? pt : best;
-      }, routeStepCoords[0] || { km: 0, lat: 0, lng: 0 }).km;
+      if (!lat || !lng || routeStepCoords.length === 0) return routeTotalKm;
+      // Project point onto each route segment and find the closest projected km
+      let bestKm = routeStepCoords[0].km;
+      let bestDist = Infinity;
+      for (let i = 0; i < routeStepCoords.length - 1; i++) {
+        const A = routeStepCoords[i];
+        const B = routeStepCoords[i + 1];
+        const dx = B.lat - A.lat;
+        const dy = B.lng - A.lng;
+        const segLenSq = dx * dx + dy * dy;
+        if (segLenSq === 0) continue;
+        const t = Math.max(0, Math.min(1, ((lat - A.lat) * dx + (lng - A.lng) * dy) / segLenSq));
+        const projLat = A.lat + t * dx;
+        const projLng = A.lng + t * dy;
+        const dist = computeDistanceKm(lat, lng, projLat, projLng);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestKm = A.km + t * (B.km - A.km);
+        }
+      }
+      return bestKm;
     };
 
     const getItemKm = (item: TimelineItem) => {
@@ -792,14 +808,21 @@ export default function Map() {
                         <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>
                         <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>
                         <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>
-                        {selectedStation.batteryAfterReach !== undefined && (
-                          <div style={{ color: "#333", marginBottom: 2 }}>
-                            🔋 Arrival: <strong>{selectedStation.batteryAfterReach.toFixed(1)}%</strong>
-                            <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
-                              Estimated battery when your route reaches this area
+                        {selectedStation.batteryAfterReach !== undefined && (() => {
+                          const timelineMatch = chargingTimeline.find(i =>
+                            i.stopId === selectedStation.id ||
+                            (i.lat === selectedStation.lat && i.lng === selectedStation.lng)
+                          );
+                          const displayBattery = timelineMatch ? timelineMatch.battery : selectedStation.batteryAfterReach;
+                          return (
+                            <div style={{ color: "#333", marginBottom: 2 }}>
+                              🔋 Arrival: <strong>{displayBattery.toFixed(1)}%</strong>
+                              <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
+                                Estimated battery when your route reaches this area
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                         {selectedStation.estimatedChargeTime !== undefined && (
                           <div style={{ color: "#333", marginBottom: 10 }}>
                             ⏱ Charge to 100%: <strong>{selectedStation.estimatedChargeTime.toFixed(0)} min</strong>
