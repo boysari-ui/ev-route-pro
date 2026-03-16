@@ -839,6 +839,11 @@ export default function Map() {
                               <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
                                 Estimated battery when your route reaches this area
                               </div>
+                              {!timelineMatch && (
+                                <div style={{ fontSize: 11, color: "#1a73e8", marginTop: 3 }}>
+                                  ℹ️ Add this stop to your trip plan for an accurate estimate
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
