@@ -364,7 +364,11 @@ export default function Map() {
 
       if (response.status === 429) {
         setIsLoading(false);
-        openPro();
+        if (!user) {
+          openAuth("signup");
+        } else {
+          openPro();
+        }
         return;
       }
 
