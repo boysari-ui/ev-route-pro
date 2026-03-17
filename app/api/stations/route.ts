@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+let teslaCache: { data: any[]; ts: number } | null = null;
+const TESLA_TTL_MS = 86400 * 1000; // 24h
+
 function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -18,23 +21,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([], { status: 400 });
   }
 
-  const [ocmResult, teslaResult] = await Promise.allSettled([
-    fetch(
-      `https://api.openchargemap.io/v3/poi/?output=json&latitude=${lat}&longitude=${lng}&distance=${distance}&maxresults=100&connectiontypeid=25,27,30,32,33&key=${process.env.OPEN_CHARGE_MAP_API_KEY}`
-    ),
-    fetch("https://supercharge.info/service/supercharge/allSites", {
-      next: { revalidate: 86400 }, // cache 24h
-    }),
-  ]);
+  const ocmResult = await fetch(
+    `https://api.openchargemap.io/v3/poi/?output=json&latitude=${lat}&longitude=${lng}&distance=${distance}&maxresults=100&key=${process.env.OPEN_CHARGE_MAP_API_KEY}`
+  ).catch(() => null);
 
-  const ocmData: any[] = ocmResult.status === "fulfilled" && ocmResult.value.ok
-    ? await ocmResult.value.json().catch(() => [])
+  const ocmData: any[] = ocmResult?.ok
+    ? await ocmResult.json().catch(() => [])
     : [];
 
-  let teslaStations: any[] = [];
-  if (teslaResult.status === "fulfilled" && teslaResult.value.ok) {
+  // Module-level 24h cache for Tesla data (avoids Next.js fetch cache bugs in API routes)
+  if (!teslaCache || Date.now() - teslaCache.ts > TESLA_TTL_MS) {
     try {
-      const allTesla: any[] = await teslaResult.value.json();
+      const res = await fetch("https://supercharge.info/service/supercharge/allSites");
+      if (res.ok) {
+        const raw: any[] = await res.json();
+        teslaCache = { data: raw, ts: Date.now() };
+      }
+    } catch {
+      // Tesla API unavailable — keep existing cache or use empty
+    }
+  }
+
+  let teslaStations: any[] = [];
+  if (teslaCache) {
+    try {
+      const allTesla: any[] = teslaCache.data;
       teslaStations = allTesla
         .filter((site) => {
           if (site.address?.country !== "Australia") return false;
@@ -54,7 +65,8 @@ export async function GET(req: NextRequest) {
           },
           UsageType: { Title: "Tesla Supercharger" },
           OperatorInfo: { Title: "Tesla" },
-          Connections: [{ Level: { Title: "DC Fast Charger" } }],
+          Connections: [{ Level: { Title: "DC Fast Charger" }, ConnectionType: { Title: "Tesla" }, PowerKW: site.powerKilowatt || 150, Quantity: site.stallCount || null }],
+          NumberOfPoints: site.stallCount || null,
           UsageCost: "Paid (Tesla account)",
         }));
     } catch {

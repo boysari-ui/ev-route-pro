@@ -61,6 +61,9 @@ interface ChargePoint {
   estimatedChargeTime?: number;
   chargerType?: "Supercharger" | "Standard"; // preserved original type for Selected Stop markers
   routeKm?: number; // exact km along route for accurate recalc
+  connectors?: string[];
+  powerKW?: number;
+  numPoints?: number;
 }
 
 interface SavedRoute {
@@ -247,6 +250,9 @@ export default function Map() {
             : "Standard",
         cost: d.UsageCost || "N/A",
         speed: d.Connections?.[0]?.Level?.Title || "N/A",
+        connectors: [...new Set((d.Connections ?? []).map((c: any) => c.ConnectionType?.Title).filter(Boolean))] as string[],
+        powerKW: Math.max(0, ...(d.Connections ?? []).map((c: any) => c.PowerKW || 0)) || undefined,
+        numPoints: d.NumberOfPoints || (d.Connections ?? []).reduce((sum: number, c: any) => sum + (c.Quantity || 0), 0) || undefined,
         address: [
           d.AddressInfo.AddressLine1,
           d.AddressInfo.Town,
@@ -951,7 +957,17 @@ export default function Map() {
                         })()}
                         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{selectedStation.title}</div>
                         <div style={{ color: "#444", marginBottom: 2 }}>🔌 {selectedStation.type}</div>
-                        {selectedStation.speed && <div style={{ color: "#444", marginBottom: 2 }}>⚡ {selectedStation.speed}</div>}
+                        {(selectedStation.connectors?.length || selectedStation.powerKW || selectedStation.numPoints) ? (
+                          <div style={{ marginBottom: 4, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                            {selectedStation.connectors?.slice(0, 3).map((c, i) => (
+                              <span key={i} style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, padding: "1px 6px", fontSize: 11, color: "#166534", fontWeight: 600 }}>{c}</span>
+                            ))}
+                            {selectedStation.powerKW ? <span style={{ fontSize: 12, color: "#555" }}>⚡ {selectedStation.powerKW}kW</span> : null}
+                            {selectedStation.numPoints ? <span style={{ fontSize: 12, color: "#555" }}>🅿️ {selectedStation.numPoints}</span> : null}
+                          </div>
+                        ) : selectedStation.speed ? (
+                          <div style={{ color: "#444", marginBottom: 2, fontSize: 12 }}>⚡ {selectedStation.speed}</div>
+                        ) : null}
                         {selectedStation.cost && <div style={{ color: "#444", marginBottom: 2 }}>💰 {selectedStation.cost}</div>}
                         {selectedStation.address && <div style={{ color: "#444", marginBottom: 6 }}>📍 {selectedStation.address}</div>}
                         {selectedStation.batteryAfterReach !== undefined && (() => {
