@@ -24,6 +24,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const handleIndexedDBError = (event: PromiseRejectionEvent) => {
+      if (event.reason?.message?.includes("Connection to Indexed Database server lost")) {
+        event.preventDefault();
+        window.location.reload();
+      }
+    };
+    window.addEventListener("unhandledrejection", handleIndexedDBError);
+    return () => window.removeEventListener("unhandledrejection", handleIndexedDBError);
+  }, []);
+
+  useEffect(() => {
     let unsubFirestore: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
