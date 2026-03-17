@@ -394,7 +394,7 @@ export default function Map() {
 
       const res = await response.json();
       if (!res.routes || res.routes.length === 0) {
-        alert("No route found. Try entering a nearby town or suburb instead of a campsite or landmark name.");
+        alert("No route found. If entering a rural address or campsite, try the nearest town instead (e.g. 'Albany WA').");
         setIsLoading(false);
         return;
       }
