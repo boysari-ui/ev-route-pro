@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 interface AuthContextValue {
@@ -42,6 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (unsubFirestore) { unsubFirestore(); unsubFirestore = null; }
 
       if (firebaseUser) {
+        // Save email/name so Firestore shows readable user info
+        setDoc(doc(db, "users", firebaseUser.uid), {
+          email: firebaseUser.email ?? "",
+          displayName: firebaseUser.displayName ?? "",
+        }, { merge: true }).catch(() => {});
+
         unsubFirestore = onSnapshot(
           doc(db, "users", firebaseUser.uid),
           (snap) => { setIsPro(snap.data()?.isPro === true); setLoading(false); },
