@@ -24,6 +24,8 @@ self.addEventListener('activate', (event) => {
 
 // Fetch — network first, fallback to cache
 self.addEventListener('fetch', (event) => {
+  // http/https 아닌 요청(chrome-extension 등)은 캐시 안 함
+  if (!event.request.url.startsWith('http')) return;
   // API 요청 또는 POST 요청은 캐시 안 함
   if (event.request.url.includes('/api/')) return;
   if (event.request.method !== 'GET') return;
