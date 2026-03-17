@@ -27,12 +27,14 @@ export default function ChargingTimeline({
   onViewOnMap,
   isPro,
   onOpenPro,
+  chargeTarget = 100,
 }: {
   items: TimelineItem[];
   onRemoveStop?: (item: TimelineItem) => void;
   onViewOnMap?: (lat: number, lng: number) => void;
   isPro?: boolean;
   onOpenPro?: () => void;
+  chargeTarget?: number;
 }) {
   const getBatteryColor = (pct: number) => {
     if (pct >= 50) return { main: "#22c55e", glow: "rgba(34,197,94,0.35)" };
@@ -214,7 +216,7 @@ export default function ChargingTimeline({
                         <div style={{ fontSize: 14, color: "#fbbf24", fontWeight: 800 }}>
                           {formatTime(item.estimatedChargeTime)}
                         </div>
-                        <div style={{ fontSize: 9, color: "#fbbf24", opacity: 0.7 }}>to 100%</div>
+                        <div style={{ fontSize: 9, color: "#fbbf24", opacity: 0.7 }}>to {chargeTarget}%</div>
                       </div>
                     )}
                   </div>
@@ -285,7 +287,7 @@ export default function ChargingTimeline({
                     fontSize: 11, color: "#fbbf24",
                     display: "flex", alignItems: "center", gap: 6, fontWeight: 500,
                   }}>
-                    ⚡ Charge to 100% before continuing
+                    ⚡ Charge to {chargeTarget}% before continuing
                   </div>
                 )}
               </div>

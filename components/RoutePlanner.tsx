@@ -13,6 +13,8 @@ type RoutePlannerProps = {
   setSelectedModel: (model: EVModel) => void;
   startBattery: number;
   setStartBattery: (value: number) => void;
+  chargeTarget: 80 | 100;
+  setChargeTarget: (value: 80 | 100) => void;
   EV_MODELS: EVModel[];
   handleRouteCalculation: () => void;
   stops: string[];
@@ -121,6 +123,8 @@ export default function RoutePlanner({
   setSelectedModel,
   startBattery,
   setStartBattery,
+  chargeTarget,
+  setChargeTarget,
   EV_MODELS,
   handleRouteCalculation,
   stops,
@@ -274,7 +278,7 @@ export default function RoutePlanner({
             )}
           </div>
 
-          {/* 배터리 슬라이더 */}
+          {/* 배터리 슬라이더 + Charge target */}
           <div className="w-44 flex flex-col gap-1 pt-1">
             <div className="flex justify-between items-baseline">
               <span className="text-xs text-gray-500 font-semibold">Starting battery</span>
@@ -294,6 +298,26 @@ export default function RoutePlanner({
             <div className="flex justify-between text-xs text-gray-400">
               <span>10%</span>
               <span>100%</span>
+            </div>
+            {/* Charge target toggle */}
+            <div className="mt-2">
+              <div className="text-xs text-gray-500 font-semibold mb-1">Charge to</div>
+              <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setChargeTarget(80)}
+                  className={`flex-1 py-1.5 transition ${chargeTarget === 80 ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                >
+                  80%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChargeTarget(100)}
+                  className={`flex-1 py-1.5 transition ${chargeTarget === 100 ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                >
+                  100%
+                </button>
+              </div>
             </div>
           </div>
         </div>

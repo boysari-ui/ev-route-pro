@@ -94,6 +94,7 @@ export default function Map() {
   const [destination, setDestination] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<EVModel | null>(null);
   const [startBattery, setStartBattery] = useState<number>(80);
+  const [chargeTarget, setChargeTarget] = useState<80 | 100>(80);
   const [stations, setStations] = useState<ChargePoint[]>([]);
   const [routeStepCoords, setRouteStepCoords] = useState<{ km: number; lat: number; lng: number }[]>([]);
   const [routeTotalKm, setRouteTotalKm] = useState<number>(0);
@@ -259,7 +260,7 @@ export default function Map() {
     }
   };
 
-  const calculateChargeTime = (stationType: string, batteryLeft: number, batteryKWh: number, speed?: string) => {
+  const calculateChargeTime = (stationType: string, batteryLeft: number, batteryKWh: number, speed?: string, targetPct?: number) => {
     let chargePower: number;
     if (stationType === "Supercharger") {
       chargePower = 150;
@@ -273,7 +274,7 @@ export default function Map() {
         chargePower = 2.4; // Level 1 or unknown
       }
     }
-    const kWhNeeded = (batteryKWh * (100 - batteryLeft)) / 100;
+    const kWhNeeded = (batteryKWh * ((targetPct ?? 100) - batteryLeft)) / 100;
     return (kWhNeeded / chargePower) * 60;
   };
 
@@ -281,7 +282,7 @@ export default function Map() {
     if (!selectedModel || routeTotalKm === 0) return newTimeline;
     const { batteryKWh, whPerKm } = selectedModel;
     const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
-    const CHARGE_TARGET = 100;
+    const CHARGE_TARGET = chargeTarget;
 
     const getKmForCoord = (lat: number, lng: number) => {
       if (!lat || !lng || routeStepCoords.length === 0) return routeTotalKm;
@@ -409,7 +410,7 @@ export default function Map() {
 
       const KM_PER_PERCENT = (batteryKWh * 1000) / whPerKm / 100;
       const CHARGE_THRESHOLD = 20;
-      const CHARGE_TARGET = 100;
+      const CHARGE_TARGET = chargeTarget;
 
       const stepCoords: { km: number; lat: number; lng: number }[] = [];
       let cumKm = 0;
@@ -434,7 +435,7 @@ export default function Map() {
       originStations.forEach(s => {
         const dist = computeDistanceKm(originLatLng.lat, originLatLng.lng, s.lat, s.lng);
         s.batteryAfterReach = currentBattery - (dist * whPerKm) / (batteryKWh * 1000) * 100;
-        s.estimatedChargeTime = calculateChargeTime(s.type, s.batteryAfterReach!, batteryKWh, s.speed);
+        s.estimatedChargeTime = calculateChargeTime(s.type, s.batteryAfterReach!, batteryKWh, s.speed, chargeTarget);
       });
       allStations.push(...originStations);
       fetchedCoords.add(`${originLatLng.lat.toFixed(1)},${originLatLng.lng.toFixed(1)}`);
@@ -486,7 +487,7 @@ export default function Map() {
             }
             if (!allStations.find(e => e.id === s.id)) {
               s.batteryAfterReach = batteryOnArrival;
-              s.estimatedChargeTime = calculateChargeTime(s.type, batteryOnArrival, batteryKWh, s.speed);
+              s.estimatedChargeTime = calculateChargeTime(s.type, batteryOnArrival, batteryKWh, s.speed, chargeTarget);
               allStations.push(s);
             }
           });
@@ -510,7 +511,7 @@ export default function Map() {
               address: sc.address,
               lat: sc.lat,
               lng: sc.lng,
-              estimatedChargeTime: calculateChargeTime("Supercharger", batteryOnArrival, batteryKWh),
+              estimatedChargeTime: calculateChargeTime("Supercharger", batteryOnArrival, batteryKWh, undefined, chargeTarget),
             };
           }
         } else {
@@ -544,7 +545,7 @@ export default function Map() {
               address: sc.address,
               lat: sc.lat,
               lng: sc.lng,
-              estimatedChargeTime: calculateChargeTime("Supercharger", batteryOnArrival, batteryKWh),
+              estimatedChargeTime: calculateChargeTime("Supercharger", batteryOnArrival, batteryKWh, undefined, chargeTarget),
             };
           }
         }
@@ -554,7 +555,7 @@ export default function Map() {
         }
 
         const stopId = `selected-stop-${timelineChargeStops.length}`;
-        const chargeTime = calculateChargeTime(chargeStationType, batteryOnArrival, batteryKWh, chargeStationSpeed);
+        const chargeTime = calculateChargeTime(chargeStationType, batteryOnArrival, batteryKWh, chargeStationSpeed, chargeTarget);
 
         timeline.push({
           type: "charge",
@@ -628,7 +629,7 @@ export default function Map() {
         const battHere = Math.max(0, Math.min(100, startBattery - pt.km / KM_PER_PERCENT));
         nearbyS.forEach(s => {
           s.batteryAfterReach = battHere;
-          s.estimatedChargeTime = calculateChargeTime(s.type, battHere, batteryKWh, s.speed);
+          s.estimatedChargeTime = calculateChargeTime(s.type, battHere, batteryKWh, s.speed, chargeTarget);
         });
         allStations.push(...nearbyS);
       });
@@ -770,6 +771,7 @@ export default function Map() {
             destination={destination} setDestination={setDestination}
             selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             startBattery={startBattery} setStartBattery={setStartBattery}
+            chargeTarget={chargeTarget} setChargeTarget={setChargeTarget}
             EV_MODELS={isPro ? EV_MODELS : EV_MODELS.filter(m => !m.proPlus)}
             handleRouteCalculation={handleRouteCalculation}
             stops={stops} setStops={setStops}
@@ -891,6 +893,7 @@ export default function Map() {
                 onViewOnMap={handleViewOnMap}
                 isPro={isPro}
                 onOpenPro={openPro}
+                chargeTarget={chargeTarget}
               />
             </div>
 
