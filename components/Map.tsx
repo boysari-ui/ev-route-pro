@@ -475,6 +475,8 @@ export default function Map() {
 
           let closestStation: ChargePoint | null = null;
           let closestDist = Infinity;
+          let closestDCStation: ChargePoint | null = null;
+          let closestDCDist = Infinity;
           let closestSupercharger: ChargePoint | null = null;
           let closestSuperchargerDist = Infinity;
 
@@ -482,8 +484,11 @@ export default function Map() {
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
             if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
-              closestSuperchargerDist = dist;
-              closestSupercharger = s;
+              closestSuperchargerDist = dist; closestSupercharger = s;
+            }
+            const spd = s.speed?.toLowerCase() ?? "";
+            if (s.type !== "Supercharger" && (spd.includes("level 3") || spd.includes("dc fast") || spd.includes("high (over 40")) && dist < closestDCDist) {
+              closestDCDist = dist; closestDCStation = s;
             }
             if (!allStations.find(e => e.id === s.id)) {
               s.batteryAfterReach = batteryOnArrival;
@@ -493,7 +498,7 @@ export default function Map() {
           });
 
           if (closestStation) {
-            const preferred = (isPro && closestSupercharger) ? closestSupercharger : closestStation;
+            const preferred = (isPro && closestSupercharger) ? closestSupercharger : (closestDCStation ?? closestStation);
             const st = preferred as ChargePoint;
             chargeLocationName = st.title;
             chargeStationAddress = st.address || "";
@@ -517,6 +522,8 @@ export default function Map() {
         } else {
           let closestStation: ChargePoint | null = null;
           let closestDist = Infinity;
+          let closestDCStation: ChargePoint | null = null;
+          let closestDCDist = Infinity;
           let closestSupercharger: ChargePoint | null = null;
           let closestSuperchargerDist = Infinity;
 
@@ -524,12 +531,15 @@ export default function Map() {
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
             if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
-              closestSuperchargerDist = dist;
-              closestSupercharger = s;
+              closestSuperchargerDist = dist; closestSupercharger = s;
+            }
+            const spd = s.speed?.toLowerCase() ?? "";
+            if (s.type !== "Supercharger" && (spd.includes("level 3") || spd.includes("dc fast") || spd.includes("high (over 40")) && dist < closestDCDist) {
+              closestDCDist = dist; closestDCStation = s;
             }
           });
           if (closestStation) {
-            const st = closestStation as ChargePoint;
+            const st = (closestDCStation ?? closestStation) as ChargePoint;
             chargeLocationName = st.title;
             chargeStationAddress = st.address || "";
             chargeStationSpeed = st.speed;
