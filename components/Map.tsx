@@ -266,10 +266,12 @@ export default function Map() {
     }
   };
 
-  const calculateChargeTime = (stationType: string, batteryLeft: number, batteryKWh: number, speed?: string, targetPct?: number) => {
+  const calculateChargeTime = (stationType: string, batteryLeft: number, batteryKWh: number, speed?: string, targetPct?: number, stationPowerKW?: number) => {
     let chargePower: number;
     if (stationType === "Supercharger") {
-      chargePower = 150;
+      chargePower = stationPowerKW || 150;
+    } else if (stationPowerKW && stationPowerKW > 0) {
+      chargePower = stationPowerKW;
     } else {
       const s = speed?.toLowerCase() ?? "";
       if (s.includes("level 3") || s.includes("dc fast") || s.includes("high (over 40")) {
@@ -279,6 +281,10 @@ export default function Map() {
       } else {
         chargePower = 2.4; // Level 1 or unknown
       }
+    }
+    // Cap by car's max charge rate if known
+    if (selectedModel?.maxChargeKW) {
+      chargePower = Math.min(chargePower, selectedModel.maxChargeKW);
     }
     const kWhNeeded = (batteryKWh * ((targetPct ?? 100) - batteryLeft)) / 100;
     return (kWhNeeded / chargePower) * 60;
@@ -441,7 +447,7 @@ export default function Map() {
       originStations.forEach(s => {
         const dist = computeDistanceKm(originLatLng.lat, originLatLng.lng, s.lat, s.lng);
         s.batteryAfterReach = currentBattery - (dist * whPerKm) / (batteryKWh * 1000) * 100;
-        s.estimatedChargeTime = calculateChargeTime(s.type, s.batteryAfterReach!, batteryKWh, s.speed, chargeTarget);
+        s.estimatedChargeTime = calculateChargeTime(s.type, s.batteryAfterReach!, batteryKWh, s.speed, chargeTarget, s.powerKW);
       });
       allStations.push(...originStations);
       fetchedCoords.add(`${originLatLng.lat.toFixed(1)},${originLatLng.lng.toFixed(1)}`);
@@ -470,6 +476,7 @@ export default function Map() {
         let chargeStationAddress = "";
         let chargeStationSpeed: string | undefined;
         let chargeStationCost: string | undefined;
+        let chargeStationPowerKW: number | undefined;
         let chargeLat = pt.lat;
         let chargeLng = pt.lng;
         let chargeStationType: "Supercharger" | "Standard" = "Standard";
@@ -498,7 +505,7 @@ export default function Map() {
             }
             if (!allStations.find(e => e.id === s.id)) {
               s.batteryAfterReach = batteryOnArrival;
-              s.estimatedChargeTime = calculateChargeTime(s.type, batteryOnArrival, batteryKWh, s.speed, chargeTarget);
+              s.estimatedChargeTime = calculateChargeTime(s.type, batteryOnArrival, batteryKWh, s.speed, chargeTarget, s.powerKW);
               allStations.push(s);
             }
           });
@@ -510,6 +517,7 @@ export default function Map() {
             chargeStationAddress = st.address || "";
             chargeStationSpeed = st.speed;
             chargeStationCost = st.cost;
+            chargeStationPowerKW = st.powerKW;
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
@@ -550,6 +558,7 @@ export default function Map() {
             chargeStationAddress = st.address || "";
             chargeStationSpeed = st.speed;
             chargeStationCost = st.cost;
+            chargeStationPowerKW = st.powerKW;
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
@@ -571,7 +580,7 @@ export default function Map() {
         }
 
         const stopId = `selected-stop-${timelineChargeStops.length}`;
-        const chargeTime = calculateChargeTime(chargeStationType, batteryOnArrival, batteryKWh, chargeStationSpeed, chargeTarget);
+        const chargeTime = calculateChargeTime(chargeStationType, batteryOnArrival, batteryKWh, chargeStationSpeed, chargeTarget, chargeStationPowerKW);
 
         timeline.push({
           type: "charge",
@@ -645,7 +654,7 @@ export default function Map() {
         const battHere = Math.max(0, Math.min(100, startBattery - pt.km / KM_PER_PERCENT));
         nearbyS.forEach(s => {
           s.batteryAfterReach = battHere;
-          s.estimatedChargeTime = calculateChargeTime(s.type, battHere, batteryKWh, s.speed, chargeTarget);
+          s.estimatedChargeTime = calculateChargeTime(s.type, battHere, batteryKWh, s.speed, chargeTarget, s.powerKW);
         });
         allStations.push(...nearbyS);
       });

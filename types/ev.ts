@@ -3,5 +3,6 @@ export interface EVModel {
   name: string;
   batteryKWh: number;
   whPerKm: number;
+  maxChargeKW?: number; // max DC charge rate the car can accept
   proPlus?: boolean;
 }
