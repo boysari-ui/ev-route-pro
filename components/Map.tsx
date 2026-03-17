@@ -579,17 +579,16 @@ export default function Map() {
         travelledKm = chargeAtKm;
       }
 
-      // Fetch stations along all remaining route segments (parallel) so the map shows
-      // chargers even when no charging stop is needed — 60km intervals, 100km radius
-      const gapFetchPoints: { km: number; lat: number; lng: number; battAtFrom: number }[] = [];
-      for (let fetchKm = travelledKm + 60; fetchKm < totalKm - 20; fetchKm += 60) {
+      // Fetch stations along entire route (parallel) — 60km intervals from start, 100km radius
+      const gapFetchPoints: { km: number; lat: number; lng: number }[] = [];
+      for (let fetchKm = 60; fetchKm < totalKm - 20; fetchKm += 60) {
         const nearPt = stepCoords.reduce((prev, curr) =>
           Math.abs(curr.km - fetchKm) < Math.abs(prev.km - fetchKm) ? curr : prev
         );
         const key = `${nearPt.lat.toFixed(1)},${nearPt.lng.toFixed(1)}`;
         if (!fetchedCoords.has(key)) {
           fetchedCoords.add(key);
-          gapFetchPoints.push({ km: fetchKm, lat: nearPt.lat, lng: nearPt.lng, battAtFrom: currentBattery });
+          gapFetchPoints.push({ km: fetchKm, lat: nearPt.lat, lng: nearPt.lng });
         }
       }
 
@@ -604,7 +603,7 @@ export default function Map() {
         const wpKey = `wp-${i}`;
         if (!fetchedCoords.has(wpKey)) {
           fetchedCoords.add(wpKey);
-          gapFetchPoints.push({ km: legKmAcc, lat: wpPt.lat, lng: wpPt.lng, battAtFrom: currentBattery });
+          gapFetchPoints.push({ km: legKmAcc, lat: wpPt.lat, lng: wpPt.lng });
         }
       }
 
@@ -614,7 +613,7 @@ export default function Map() {
       );
       gapResults.forEach((nearbyS, idx) => {
         const pt = gapFetchPoints[idx];
-        const battHere = Math.max(0, pt.battAtFrom - (pt.km - travelledKm) / KM_PER_PERCENT);
+        const battHere = Math.max(0, Math.min(100, startBattery - pt.km / KM_PER_PERCENT));
         nearbyS.forEach(s => {
           s.batteryAfterReach = battHere;
           s.estimatedChargeTime = calculateChargeTime(s.type, battHere, batteryKWh);
