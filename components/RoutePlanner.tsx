@@ -138,6 +138,7 @@ export default function RoutePlanner({
   const [customName, setCustomName] = useState("");
   const [customBattery, setCustomBattery] = useState(75);
   const [customWhPerKm, setCustomWhPerKm] = useState(180);
+  const [customMaxChargeKW, setCustomMaxChargeKW] = useState(50);
 
   const getBatteryColor = (pct: number) => {
     if (pct >= 60) return "#10b981";
@@ -157,7 +158,7 @@ export default function RoutePlanner({
 
   const handleCustomApply = () => {
     if (!customName.trim()) return;
-    setSelectedModel({ name: customName, batteryKWh: customBattery, whPerKm: customWhPerKm });
+    setSelectedModel({ name: customName, batteryKWh: customBattery, whPerKm: customWhPerKm, maxChargeKW: customMaxChargeKW });
     setIsCustomModel(false);
   };
 
@@ -263,6 +264,15 @@ export default function RoutePlanner({
                       type="number"
                       value={customWhPerKm}
                       onChange={e => setCustomWhPerKm(Number(e.target.value))}
+                      className="w-full bg-white text-black px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-400 mb-1">Max charge rate (kW)</div>
+                    <input
+                      type="number"
+                      value={customMaxChargeKW}
+                      onChange={e => setCustomMaxChargeKW(Number(e.target.value))}
                       className="w-full bg-white text-black px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                     />
                   </div>
