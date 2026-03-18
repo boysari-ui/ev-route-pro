@@ -295,6 +295,23 @@ export default function ChargingTimeline({
           );
         })}
       </div>
+
+      {/* Disclaimer */}
+      <div style={{
+        marginTop: 20, padding: "12px 14px",
+        background: "rgba(255,255,255,0.03)", borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.07)",
+      }}>
+        <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.6 }}>
+          <span style={{ fontWeight: 700, color: "#94a3b8" }}>⚠️ Before you depart:</span> Always verify charger availability before driving — charging stations may be offline, occupied, or incompatible with your vehicle.
+        </div>
+        <div style={{ fontSize: 10, color: "#475569", marginTop: 6, lineHeight: 1.5 }}>
+          Charging station data sourced from{" "}
+          <span style={{ color: "#64748b", fontWeight: 600 }}>OpenChargeMap</span> and{" "}
+          <span style={{ color: "#64748b", fontWeight: 600 }}>supercharge.info</span>.
+          Battery estimates are approximate and may vary based on speed, temperature, and driving conditions.
+        </div>
+      </div>
     </div>
   );
 }

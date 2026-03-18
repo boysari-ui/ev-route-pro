@@ -12,9 +12,12 @@ export default function Privacy() {
       <nav style={{ background: "rgba(10,15,35,0.97)", padding: "0 48px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={36} height={36} style={{ borderRadius: 9, objectFit: "cover" }} />
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
-            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Australia</div>
+          <div style={{ lineHeight: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
+              <span style={{ fontSize: "0.55rem", fontWeight: 800, letterSpacing: "0.1em", background: "#16a34a", color: "white", padding: "2px 5px", borderRadius: 4 }}>BETA</span>
+            </div>
+            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginTop: 2 }}>Australia</div>
           </div>
         </Link>
         <Link href="/" style={{ background: "white", color: "#059669", fontWeight: 700, fontSize: "0.875rem", padding: "10px 22px", borderRadius: 10, textDecoration: "none" }}>
@@ -63,7 +66,11 @@ export default function Privacy() {
             content: "We may update this Privacy Policy from time to time. We will notify users of any significant changes by updating the date at the top of this page. Continued use of EV Route Pro after changes constitutes acceptance of the updated policy."
           },
           {
-            title: "8. Contact Us",
+            title: "8. Third-Party Data Sources",
+            content: "Charging station data is sourced from OpenChargeMap (openchargemap.org) and supercharge.info. This data is provided by third parties and may not be complete or up to date. EV Route Pro does not guarantee the accuracy of charging station locations, availability, or compatibility. Always verify charger availability before your trip."
+          },
+          {
+            title: "9. Contact Us",
             content: "If you have any questions about this Privacy Policy, please contact us through the Contact page. We aim to respond to all privacy-related inquiries within 5 business days."
           },
         ].map((section) => (

@@ -93,8 +93,11 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 36, marginBottom: 6 }}>⚡</div>
-          <div style={{ color: "white", fontSize: 20, fontWeight: 800 }}>
-            {mode === "signup" ? "Create your free account" : "Welcome back"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <div style={{ color: "white", fontSize: 20, fontWeight: 800 }}>
+              {mode === "signup" ? "Create your free account" : "Welcome back"}
+            </div>
+            <span style={{ fontSize: "0.55rem", fontWeight: 800, letterSpacing: "0.1em", background: "#16a34a", color: "white", padding: "2px 5px", borderRadius: 4 }}>BETA</span>
           </div>
           <div style={{ color: "#64748b", fontSize: 13, marginTop: 4 }}>
             {mode === "signup" ? "Start planning EV trips for free" : "Sign in to EV Route Pro"}
@@ -188,8 +191,8 @@ export default function AuthModal({ onClose, defaultMode = "signup" }: Props) {
           </button>
         </div>
 
-        <div style={{ textAlign: "center", color: "#334155", fontSize: 11, marginTop: 12 }}>
-          🔒 Your data is secure. No spam, ever.
+        <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, marginTop: 12 }}>
+          🔒 No credit card required · Your data is secure
         </div>
       </div>
     </div>

@@ -167,7 +167,10 @@ export default function Home() {
           <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={52} height={52}
             style={{ borderRadius:9, objectFit:"cover", boxShadow:"0 2px 8px rgba(0,0,0,0.2)" }} />
           <div style={{ lineHeight:1 }}>
-            <div style={{ fontWeight:800, fontSize:"1.05rem", letterSpacing:"-0.02em", color:"white" }}>EV Route Pro</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ fontWeight:800, fontSize:"1.05rem", letterSpacing:"-0.02em", color:"white" }}>EV Route Pro</div>
+              <span style={{ fontSize:"0.55rem", fontWeight:800, letterSpacing:"0.1em", background:"#16a34a", color:"white", padding:"2px 5px", borderRadius:4 }}>BETA</span>
+            </div>
             <div style={{ fontSize:"0.6rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginTop:2 }}>Australia</div>
           </div>
         </div>

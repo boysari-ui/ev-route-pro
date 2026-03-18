@@ -12,9 +12,12 @@ export default function Terms() {
       <nav style={{ background: "rgba(10,15,35,0.97)", padding: "0 48px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <Image src="/ev-route-pro-logo.png" alt="EV Route Pro" width={36} height={36} style={{ borderRadius: 9, objectFit: "cover" }} />
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
-            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Australia</div>
+          <div style={{ lineHeight: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
+              <span style={{ fontSize: "0.55rem", fontWeight: 800, letterSpacing: "0.1em", background: "#16a34a", color: "white", padding: "2px 5px", borderRadius: 4 }}>BETA</span>
+            </div>
+            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginTop: 2 }}>Australia</div>
           </div>
         </Link>
         <Link href="/" style={{ background: "white", color: "#059669", fontWeight: 700, fontSize: "0.875rem", padding: "10px 22px", borderRadius: 10, textDecoration: "none" }}>
@@ -44,7 +47,7 @@ export default function Terms() {
           },
           {
             title: "3. Accuracy of Route Information",
-            content: "While we strive to provide accurate and up-to-date charging stop information, EV Route Pro does not guarantee the accuracy, completeness, or reliability of route calculations or charging station data. Always verify charging station availability before your trip. We are not responsible for any inconvenience or costs arising from inaccurate information."
+            content: "While we strive to provide accurate and up-to-date charging stop information, EV Route Pro does not guarantee the accuracy, completeness, or reliability of route calculations or charging station data. Charging station data is sourced from OpenChargeMap (openchargemap.org) and supercharge.info — third-party sources that may be incomplete or out of date. Battery estimates are approximate and may vary based on driving speed, temperature, terrain, and other conditions. Always verify charger availability and compatibility with your vehicle before departing. We are not responsible for any inconvenience or costs arising from inaccurate information."
           },
           {
             title: "4. Use of Google Maps",

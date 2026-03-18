@@ -424,12 +424,38 @@ export default function Map() {
       const CHARGE_THRESHOLD = 20;
       const CHARGE_TARGET = chargeTarget;
 
+      // Decode overview_polyline for accurate route geometry (fixes off-route warnings on highway towns)
+      const decodePolyline = (encoded: string): { lat: number; lng: number }[] => {
+        const pts: { lat: number; lng: number }[] = [];
+        let idx = 0, lat = 0, lng = 0;
+        while (idx < encoded.length) {
+          let shift = 0, result = 0, byte: number;
+          do { byte = encoded.charCodeAt(idx++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+          lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+          shift = 0; result = 0;
+          do { byte = encoded.charCodeAt(idx++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+          lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+          pts.push({ lat: lat / 1e5, lng: lng / 1e5 });
+        }
+        return pts;
+      };
+
+      const polylinePoints = decodePolyline(res.routes[0].overview_polyline?.points ?? "");
       const stepCoords: { km: number; lat: number; lng: number }[] = [];
       let cumKm = 0;
-      for (const leg of routeLegs) {
-        for (const step of (leg as any).steps || []) {
-          stepCoords.push({ km: cumKm, lat: step.start_location.lat, lng: step.start_location.lng });
-          cumKm += (step.distance?.value || 0) / 1000;
+      if (polylinePoints.length > 0) {
+        stepCoords.push({ km: 0, lat: polylinePoints[0].lat, lng: polylinePoints[0].lng });
+        for (let i = 1; i < polylinePoints.length; i++) {
+          cumKm += computeDistanceKm(polylinePoints[i - 1].lat, polylinePoints[i - 1].lng, polylinePoints[i].lat, polylinePoints[i].lng);
+          stepCoords.push({ km: cumKm, lat: polylinePoints[i].lat, lng: polylinePoints[i].lng });
+        }
+      } else {
+        // Fallback: use step start locations
+        for (const leg of routeLegs) {
+          for (const step of (leg as any).steps || []) {
+            stepCoords.push({ km: cumKm, lat: step.start_location.lat, lng: step.start_location.lng });
+            cumKm += (step.distance?.value || 0) / 1000;
+          }
         }
       }
       const totalKm = cumKm;
@@ -452,19 +478,23 @@ export default function Map() {
       allStations.push(...originStations);
       fetchedCoords.add(`${originLatLng.lat.toFixed(1)},${originLatLng.lng.toFixed(1)}`);
 
-      // Returns minimum distance (km) from a lat/lng to the nearest point on the route
-      const MAX_ROUTE_DETOUR_KM = 20;
-      const minDistToRoute = (lat: number, lng: number): number => {
+      // Returns distance from route and projected km along route for a lat/lng
+      const MAX_ROUTE_DETOUR_KM = 25;
+      const STATION_WINDOW_KM = 80;
+      const getStationRouteInfo = (lat: number, lng: number): { dist: number; routeKm: number } => {
         let best = Infinity;
+        let bestKm = 0;
         for (let i = 0; i < stepCoords.length - 1; i++) {
           const A = stepCoords[i], B = stepCoords[i + 1];
           const dx = B.lat - A.lat, dy = B.lng - A.lng;
           const lenSq = dx * dx + dy * dy;
           const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((lat - A.lat) * dx + (lng - A.lng) * dy) / lenSq));
-          best = Math.min(best, computeDistanceKm(lat, lng, A.lat + t * dx, A.lng + t * dy));
+          const dist = computeDistanceKm(lat, lng, A.lat + t * dx, A.lng + t * dy);
+          if (dist < best) { best = dist; bestKm = A.km + t * (B.km - A.km); }
         }
-        return best;
+        return { dist: best, routeKm: bestKm };
       };
+      const usedStationIds = new Set<string>();
 
       while (true) {
         // Break if we can reach destination with at least 5% battery remaining
@@ -478,23 +508,15 @@ export default function Map() {
         // Only look at steps AHEAD of current position to prevent duplicate stops
         const forwardSteps = stepCoords.filter(s => s.km > travelledKm);
         if (forwardSteps.length === 0) break;
-        // Interpolate exact position at chargeAtKm to guarantee unique coords per stop
-        let pt = forwardSteps[0];
-        for (let si = 0; si < stepCoords.length - 1; si++) {
-          if (stepCoords[si].km <= chargeAtKm && chargeAtKm <= stepCoords[si + 1].km) {
-            const frac = (chargeAtKm - stepCoords[si].km) / (stepCoords[si + 1].km - stepCoords[si].km);
-            pt = {
-              km: chargeAtKm,
-              lat: stepCoords[si].lat + frac * (stepCoords[si + 1].lat - stepCoords[si].lat),
-              lng: stepCoords[si].lng + frac * (stepCoords[si + 1].lng - stepCoords[si].lng),
-            };
-            break;
-          }
-        }
+        // Use nearest actual route step as search center (real road coordinate)
+        const pt = forwardSteps.reduce((prev, curr) =>
+          Math.abs(curr.km - chargeAtKm) < Math.abs(prev.km - chargeAtKm) ? curr : prev
+        );
 
         const kmDriven = chargeAtKm - travelledKm;
         const batteryOnArrival = Math.max(0, currentBattery - kmDriven / KM_PER_PERCENT);
-        const coordKey = `${pt.lat.toFixed(1)},${pt.lng.toFixed(1)}`;
+        // Use chargeAtKm as cache key — always unique, prevents same region being fetched twice
+        const coordKey = `chargeAt_${Math.round(chargeAtKm)}`;
 
         let chargeLocationName: string | null = null;
         let chargeStationAddress = "";
@@ -518,7 +540,10 @@ export default function Map() {
           let closestSuperchargerDist = Infinity;
 
           nearbyStations.forEach(s => {
-            if (minDistToRoute(s.lat, s.lng) > MAX_ROUTE_DETOUR_KM) return;
+            const { dist: routeDist, routeKm: stationKm } = getStationRouteInfo(s.lat, s.lng);
+            if (routeDist > MAX_ROUTE_DETOUR_KM) return;
+            if (Math.abs(stationKm - chargeAtKm) > STATION_WINDOW_KM) return;
+            if (usedStationIds.has(s.id)) return;
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
             if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
@@ -546,6 +571,7 @@ export default function Map() {
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
+            usedStationIds.add(st.id);
           }
 
           if (!isPro && closestSupercharger && chargeStationType !== "Supercharger") {
@@ -567,7 +593,10 @@ export default function Map() {
           let closestSuperchargerDist = Infinity;
 
           allStations.forEach(s => {
-            if (minDistToRoute(s.lat, s.lng) > MAX_ROUTE_DETOUR_KM) return;
+            const { dist: routeDist, routeKm: stationKm } = getStationRouteInfo(s.lat, s.lng);
+            if (routeDist > MAX_ROUTE_DETOUR_KM) return;
+            if (Math.abs(stationKm - chargeAtKm) > STATION_WINDOW_KM) return;
+            if (usedStationIds.has(s.id)) return;
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
             if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
@@ -588,6 +617,7 @@ export default function Map() {
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
+            usedStationIds.add(st.id);
           }
           if (closestSupercharger && chargeStationType !== "Supercharger") {
             const sc = closestSupercharger as ChargePoint;
@@ -764,9 +794,12 @@ export default function Map() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
           onClick={() => { localStorage.removeItem("ev_on_map"); window.location.reload(); }}>
           <img src="/ev-route-pro-logo.png" alt="EV Route Pro" width={36} height={36} style={{ borderRadius: 9, objectFit: "cover" }} />
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
-            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Australia</div>
+          <div style={{ lineHeight: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "white", letterSpacing: "-0.02em" }}>EV Route Pro</div>
+              <span style={{ fontSize: "0.55rem", fontWeight: 800, letterSpacing: "0.1em", background: "#16a34a", color: "white", padding: "2px 5px", borderRadius: 4 }}>BETA</span>
+            </div>
+            <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginTop: 2 }}>Australia</div>
           </div>
         </div>
         <AuthBar onOpenAuth={openAuth} onOpenPro={openPro} onOpenProfile={openProfile} />
@@ -983,7 +1016,7 @@ export default function Map() {
                             const d = computeDistanceKm(selectedStation.lat, selectedStation.lng, A.lat + t * dx, A.lng + t * dy);
                             if (d < minDist) minDist = d;
                           }
-                          if (minDist > 30) return (
+                          if (minDist > 35) return (
                             <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "6px 10px", marginBottom: 8, fontSize: 11, color: "#92400e" }}>
                               ⚠️ This stop is ~{Math.round(minDist)}km from your route — order and battery estimates may be inaccurate
                             </div>
