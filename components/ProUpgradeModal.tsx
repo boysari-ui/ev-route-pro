@@ -86,7 +86,7 @@ export default function ProUpgradeModal({ onClose, limitReached }: Props) {
             <div style={{ fontSize: 11, fontWeight: 800, textAlign: "center", color: "#fbbf24" }}>PRO PLUS ⚡</div>
           </div>
           {[
-            { icon: "🗺️", label: "Route calculations", free: "10 / day", pro: "Unlimited" },
+            { icon: "🗺️", label: "Route calculations", free: "10 / week", pro: "Unlimited" },
             { icon: "⚡", label: "Charger priority",   free: "Standard",  pro: "Supercharger first" },
             { icon: "🚗", label: "EV models",          free: "10 models", pro: "25 models" },
             { icon: "📍", label: "Save routes",        free: "✕",         pro: "✓" },

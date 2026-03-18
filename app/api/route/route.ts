@@ -12,8 +12,16 @@ function getAdmin() {
   return { auth: getAuth(), db: getFirestore() };
 }
 
-const FREE_DAILY_LIMIT = 10;
-const ANON_DAILY_LIMIT = 3;
+const FREE_WEEKLY_LIMIT = 10;
+const ANON_WEEKLY_LIMIT = 3;
+
+// Monday of the current UTC week — resets every Monday
+function getWeekKey(): string {
+  const d = new Date();
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().slice(0, 10);
+}
 
 export async function POST(req: NextRequest) {
   const { origin, destination, stops } = await req.json();
@@ -25,7 +33,7 @@ export async function POST(req: NextRequest) {
   // --- Server-side rate limiting ---
   const authHeader = req.headers.get("Authorization");
   const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const week = getWeekKey();
 
   try {
     const { auth, db } = getAdmin();
@@ -43,10 +51,10 @@ export async function POST(req: NextRequest) {
 
       // Pro users: unlimited
       if (!userData.isPro) {
-        const usageKey = `routeUsage_${today}`;
+        const usageKey = `routeUsage_${week}`;
         const count = userData[usageKey] || 0;
-        if (count >= FREE_DAILY_LIMIT) {
-          return NextResponse.json({ error: "Daily limit reached", limitReached: true }, { status: 429 });
+        if (count >= FREE_WEEKLY_LIMIT) {
+          return NextResponse.json({ error: "Weekly limit reached", limitReached: true }, { status: 429 });
         }
         await userRef.set({ [usageKey]: count + 1 }, { merge: true });
       }
@@ -57,11 +65,11 @@ export async function POST(req: NextRequest) {
       const ipRef = db.collection("rateLimit").doc(ipKey);
       const ipSnap = await ipRef.get();
       const ipData = ipSnap.data() || {};
-      const count = ipData.date === today ? (ipData.count || 0) : 0;
-      if (count >= ANON_DAILY_LIMIT) {
-        return NextResponse.json({ error: "Daily limit reached", limitReached: true }, { status: 429 });
+      const count = ipData.week === week ? (ipData.count || 0) : 0;
+      if (count >= ANON_WEEKLY_LIMIT) {
+        return NextResponse.json({ error: "Weekly limit reached", limitReached: true }, { status: 429 });
       }
-      await ipRef.set({ date: today, count: count + 1 }, { merge: true });
+      await ipRef.set({ week, count: count + 1 }, { merge: true });
     }
   } catch (err) {
     // Rate limiting failure should not block the request — log and continue
