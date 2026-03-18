@@ -354,7 +354,7 @@ export default function Map() {
 
   const handleRemoveStop = (item: TimelineItem) => {
     if (!item.stopId) return;
-    setStations(prev => prev.map(s => s.id === item.stopId ? { ...s, isUsedAsWaypoint: false } : s));
+    setStations(prev => prev.filter(s => s.id !== item.stopId));
     setChargingTimeline(prev =>
       prev.filter(i => i.stopId !== item.stopId).map(i => i.type === "arrival" ? { ...i, battery: 0 } : i)
     );
