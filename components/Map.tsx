@@ -355,10 +355,9 @@ export default function Map() {
   const handleRemoveStop = (item: TimelineItem) => {
     if (!item.stopId) return;
     setStations(prev => prev.map(s => s.id === item.stopId ? { ...s, isUsedAsWaypoint: false } : s));
-    setChargingTimeline(prev => {
-      const filtered = prev.filter(i => i.stopId !== item.stopId);
-      return recalcArrivalBattery(filtered);
-    });
+    setChargingTimeline(prev =>
+      prev.filter(i => i.stopId !== item.stopId).map(i => i.type === "arrival" ? { ...i, battery: 0 } : i)
+    );
   };
 
   const handleRouteCalculation = async () => {
@@ -1115,9 +1114,10 @@ export default function Map() {
                               const u = stations.map(s => s.id === selectedStation.id ? { ...s, isUsedAsWaypoint: false } : s);
                               setStations(u);
                               setSelectedStation({ ...selectedStation, isUsedAsWaypoint: false });
-                              setChargingTimeline(prev => recalcArrivalBattery(prev.filter(i =>
-                                !(i.stopId === selectedStation.id || (i.lat === selectedStation.lat && i.lng === selectedStation.lng))
-                              )));
+                              setChargingTimeline(prev =>
+                                prev.filter(i => !(i.stopId === selectedStation.id || (i.lat === selectedStation.lat && i.lng === selectedStation.lng)))
+                                  .map(i => i.type === "arrival" ? { ...i, battery: 0 } : i)
+                              );
                             }}
                           >− Remove Charging Stop</button>
                         )}
