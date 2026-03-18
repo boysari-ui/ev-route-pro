@@ -452,6 +452,20 @@ export default function Map() {
       allStations.push(...originStations);
       fetchedCoords.add(`${originLatLng.lat.toFixed(1)},${originLatLng.lng.toFixed(1)}`);
 
+      // Returns minimum distance (km) from a lat/lng to the nearest point on the route
+      const MAX_ROUTE_DETOUR_KM = 20;
+      const minDistToRoute = (lat: number, lng: number): number => {
+        let best = Infinity;
+        for (let i = 0; i < stepCoords.length - 1; i++) {
+          const A = stepCoords[i], B = stepCoords[i + 1];
+          const dx = B.lat - A.lat, dy = B.lng - A.lng;
+          const lenSq = dx * dx + dy * dy;
+          const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((lat - A.lat) * dx + (lng - A.lng) * dy) / lenSq));
+          best = Math.min(best, computeDistanceKm(lat, lng, A.lat + t * dx, A.lng + t * dy));
+        }
+        return best;
+      };
+
       while (true) {
         // Break if we can reach destination with at least 5% battery remaining
         const remainingKm = totalKm - travelledKm;
@@ -464,9 +478,19 @@ export default function Map() {
         // Only look at steps AHEAD of current position to prevent duplicate stops
         const forwardSteps = stepCoords.filter(s => s.km > travelledKm);
         if (forwardSteps.length === 0) break;
-        const pt = forwardSteps.reduce((prev, curr) =>
-          Math.abs(curr.km - chargeAtKm) < Math.abs(prev.km - chargeAtKm) ? curr : prev
-        );
+        // Interpolate exact position at chargeAtKm to guarantee unique coords per stop
+        let pt = forwardSteps[0];
+        for (let si = 0; si < stepCoords.length - 1; si++) {
+          if (stepCoords[si].km <= chargeAtKm && chargeAtKm <= stepCoords[si + 1].km) {
+            const frac = (chargeAtKm - stepCoords[si].km) / (stepCoords[si + 1].km - stepCoords[si].km);
+            pt = {
+              km: chargeAtKm,
+              lat: stepCoords[si].lat + frac * (stepCoords[si + 1].lat - stepCoords[si].lat),
+              lng: stepCoords[si].lng + frac * (stepCoords[si + 1].lng - stepCoords[si].lng),
+            };
+            break;
+          }
+        }
 
         const kmDriven = chargeAtKm - travelledKm;
         const batteryOnArrival = Math.max(0, currentBattery - kmDriven / KM_PER_PERCENT);
@@ -494,6 +518,7 @@ export default function Map() {
           let closestSuperchargerDist = Infinity;
 
           nearbyStations.forEach(s => {
+            if (minDistToRoute(s.lat, s.lng) > MAX_ROUTE_DETOUR_KM) return;
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
             if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
@@ -542,6 +567,7 @@ export default function Map() {
           let closestSuperchargerDist = Infinity;
 
           allStations.forEach(s => {
+            if (minDistToRoute(s.lat, s.lng) > MAX_ROUTE_DETOUR_KM) return;
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
             if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
