@@ -9,7 +9,7 @@ export default function ChargerFilters({ visibleTypes, toggleType }: Props) {
 
   const filters = [
     { label: "Selected Stop", color: "#3b82f6", type: "Selected Stop" },
-    { label: "Supercharger", color: "#ef4444", type: "Supercharger" },
+    { label: "Fast Charger", color: "#ef4444", type: "Fast Charger" },
     { label: "Standard Charger", color: "#22c55e", type: "Standard" },
   ];
 

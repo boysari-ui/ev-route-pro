@@ -25,7 +25,7 @@ const containerStyle = { width: "100%", height: "calc(100vh - 180px)" };
 const LIBRARIES: ("places" | "marker" | "geometry")[] = ["places", "marker"];
 const center = { lat: -37.8136, lng: 144.9631 };
 
-interface NearestSupercharger {
+interface NearestFastCharger {
   title: string;
   address?: string;
   lat: number;
@@ -40,8 +40,8 @@ interface TimelineItem {
   address?: string;
   lat?: number;
   lng?: number;
-  stationType?: "Supercharger" | "Standard";
-  nearestSupercharger?: NearestSupercharger;
+  stationType?: "Fast Charger" | "Standard";
+  nearestFastCharger?: NearestFastCharger;
   stopId?: string;
   estimatedChargeTime?: number;
   routeKm?: number; // exact km along route — set during initial calculation
@@ -59,7 +59,7 @@ interface ChargePoint {
   isUsedAsWaypoint?: boolean;
   batteryAfterReach?: number;
   estimatedChargeTime?: number;
-  chargerType?: "Supercharger" | "Standard"; // preserved original type for Selected Stop markers
+  chargerType?: "Fast Charger" | "Standard"; // preserved original type for Selected Stop markers
   routeKm?: number; // exact km along route for accurate recalc
   connectors?: string[];
   powerKW?: number;
@@ -101,6 +101,8 @@ export default function Map() {
   const [stations, setStations] = useState<ChargePoint[]>([]);
   const [routeStepCoords, setRouteStepCoords] = useState<{ km: number; lat: number; lng: number }[]>([]);
   const [routeTotalKm, setRouteTotalKm] = useState<number>(0);
+  const [routeTotalDuration, setRouteTotalDuration] = useState<number>(0); // seconds
+  const [routeDisplayKm, setRouteDisplayKm] = useState<number>(0); // official distance for display
   const [selectedStation, setSelectedStation] = useState<ChargePoint | null>(null);
   const [stops, setStops] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -241,13 +243,10 @@ export default function Map() {
         lat: d.AddressInfo.Latitude,
         lng: d.AddressInfo.Longitude,
         title: d.AddressInfo.Title || "Unknown",
-        type:
-          d.UsageType?.Title?.toLowerCase().includes("tesla") ||
-          d.AddressInfo?.Title?.toLowerCase().includes("tesla") ||
-          d.OperatorInfo?.Title?.toLowerCase().includes("tesla") ||
-          d.Title?.toLowerCase().includes("supercharger")
-            ? "Supercharger"
-            : "Standard",
+        type: (() => {
+          const maxKW = Math.max(0, ...(d.Connections ?? []).map((c: any) => c.PowerKW || 0));
+          return maxKW >= 50 ? "Fast Charger" : "Standard";
+        })(),
         cost: d.UsageCost || "N/A",
         speed: d.Connections?.[0]?.Level?.Title || "N/A",
         connectors: [...new Set((d.Connections ?? []).map((c: any) => c.ConnectionType?.Title).filter(Boolean))] as string[],
@@ -268,7 +267,7 @@ export default function Map() {
 
   const calculateChargeTime = (stationType: string, batteryLeft: number, batteryKWh: number, speed?: string, targetPct?: number, stationPowerKW?: number) => {
     let chargePower: number;
-    if (stationType === "Supercharger") {
+    if (stationType === "Fast Charger") {
       chargePower = stationPowerKW || 150;
     } else if (stationPowerKW && stationPowerKW > 0) {
       chargePower = stationPowerKW;
@@ -342,7 +341,7 @@ export default function Map() {
       battery = Math.max(0, battery - kmDriven / KM_PER_PERCENT);
       const updatedItem = { ...item, battery: parseFloat(battery.toFixed(1)) };
       if (item.type === "charge") {
-        battery = CHARGE_TARGET;
+        if (battery > 0) battery = CHARGE_TARGET;
         lastKm = itemKm;
       } else if (item.type === "waypoint") {
         lastKm = itemKm;
@@ -355,9 +354,7 @@ export default function Map() {
   const handleRemoveStop = (item: TimelineItem) => {
     if (!item.stopId) return;
     setStations(prev => prev.filter(s => s.id !== item.stopId));
-    setChargingTimeline(prev =>
-      prev.filter(i => i.stopId !== item.stopId).map(i => i.type === "arrival" ? { ...i, battery: 0 } : i)
-    );
+    setChargingTimeline(prev => recalcArrivalBattery(prev.filter(i => i.stopId !== item.stopId)));
   };
 
   const handleRouteCalculation = async () => {
@@ -458,8 +455,12 @@ export default function Map() {
         }
       }
       const totalKm = cumKm;
+      const officialDistanceKm = routeLegs.reduce((sum: number, leg: any) => sum + (leg.distance?.value || 0), 0) / 1000;
+      const totalDurationSec = routeLegs.reduce((sum: number, leg: any) => sum + (leg.duration?.value || 0), 0);
       setRouteStepCoords(stepCoords);
       setRouteTotalKm(totalKm);
+      setRouteDisplayKm(officialDistanceKm);
+      setRouteTotalDuration(totalDurationSec);
 
       let currentBattery = startBattery;
       let travelledKm = 0;
@@ -524,8 +525,8 @@ export default function Map() {
         let chargeStationPowerKW: number | undefined;
         let chargeLat = pt.lat;
         let chargeLng = pt.lng;
-        let chargeStationType: "Supercharger" | "Standard" = "Standard";
-        let nearestSupercharger: NearestSupercharger | undefined;
+        let chargeStationType: "Fast Charger" | "Standard" = "Standard";
+        let nearestFastCharger: NearestFastCharger | undefined;
 
         if (!fetchedCoords.has(coordKey)) {
           fetchedCoords.add(coordKey);
@@ -535,8 +536,8 @@ export default function Map() {
           let closestDist = Infinity;
           let closestDCStation: ChargePoint | null = null;
           let closestDCDist = Infinity;
-          let closestSupercharger: ChargePoint | null = null;
-          let closestSuperchargerDist = Infinity;
+          let closestFastCharger: ChargePoint | null = null;
+          let closestFastChargerDist = Infinity;
 
           nearbyStations.forEach(s => {
             const { dist: routeDist, routeKm: stationKm } = getStationRouteInfo(s.lat, s.lng);
@@ -545,11 +546,11 @@ export default function Map() {
             if (usedStationIds.has(s.id)) return;
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
-            if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
-              closestSuperchargerDist = dist; closestSupercharger = s;
+            if (s.type === "Fast Charger" && dist < closestFastChargerDist) {
+              closestFastChargerDist = dist; closestFastCharger = s;
             }
             const spd = s.speed?.toLowerCase() ?? "";
-            if (s.type !== "Supercharger" && (spd.includes("level 3") || spd.includes("dc fast") || spd.includes("high (over 40")) && dist < closestDCDist) {
+            if (s.type !== "Fast Charger" && (spd.includes("level 3") || spd.includes("dc fast") || spd.includes("high (over 40")) && dist < closestDCDist) {
               closestDCDist = dist; closestDCStation = s;
             }
             if (!allStations.find(e => e.id === s.id)) {
@@ -560,7 +561,7 @@ export default function Map() {
           });
 
           if (closestStation) {
-            const preferred = (isPro && closestSupercharger) ? closestSupercharger : (closestDCStation ?? closestStation);
+            const preferred = closestFastCharger ?? closestDCStation ?? closestStation;
             const st = preferred as ChargePoint;
             chargeLocationName = st.title;
             chargeStationAddress = st.address || "";
@@ -569,27 +570,16 @@ export default function Map() {
             chargeStationPowerKW = st.powerKW;
             chargeLat = st.lat;
             chargeLng = st.lng;
-            chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
+            chargeStationType = st.type === "Fast Charger" ? "Fast Charger" : "Standard";
             usedStationIds.add(st.id);
-          }
-
-          if (!isPro && closestSupercharger && chargeStationType !== "Supercharger") {
-            const sc = closestSupercharger as ChargePoint;
-            nearestSupercharger = {
-              title: sc.title,
-              address: sc.address,
-              lat: sc.lat,
-              lng: sc.lng,
-              estimatedChargeTime: calculateChargeTime("Supercharger", batteryOnArrival, batteryKWh, undefined, chargeTarget),
-            };
           }
         } else {
           let closestStation: ChargePoint | null = null;
           let closestDist = Infinity;
           let closestDCStation: ChargePoint | null = null;
           let closestDCDist = Infinity;
-          let closestSupercharger: ChargePoint | null = null;
-          let closestSuperchargerDist = Infinity;
+          let closestFastCharger: ChargePoint | null = null;
+          let closestFastChargerDist = Infinity;
 
           allStations.forEach(s => {
             const { dist: routeDist, routeKm: stationKm } = getStationRouteInfo(s.lat, s.lng);
@@ -598,16 +588,16 @@ export default function Map() {
             if (usedStationIds.has(s.id)) return;
             const dist = computeDistanceKm(pt.lat, pt.lng, s.lat, s.lng);
             if (dist < closestDist) { closestDist = dist; closestStation = s; }
-            if (s.type === "Supercharger" && dist < closestSuperchargerDist) {
-              closestSuperchargerDist = dist; closestSupercharger = s;
+            if (s.type === "Fast Charger" && dist < closestFastChargerDist) {
+              closestFastChargerDist = dist; closestFastCharger = s;
             }
             const spd = s.speed?.toLowerCase() ?? "";
-            if (s.type !== "Supercharger" && (spd.includes("level 3") || spd.includes("dc fast") || spd.includes("high (over 40")) && dist < closestDCDist) {
+            if (s.type !== "Fast Charger" && (spd.includes("level 3") || spd.includes("dc fast") || spd.includes("high (over 40")) && dist < closestDCDist) {
               closestDCDist = dist; closestDCStation = s;
             }
           });
           if (closestStation) {
-            const st = (closestDCStation ?? closestStation) as ChargePoint;
+            const st = (closestFastCharger ?? closestDCStation ?? closestStation) as ChargePoint;
             chargeLocationName = st.title;
             chargeStationAddress = st.address || "";
             chargeStationSpeed = st.speed;
@@ -615,17 +605,17 @@ export default function Map() {
             chargeStationPowerKW = st.powerKW;
             chargeLat = st.lat;
             chargeLng = st.lng;
-            chargeStationType = st.type === "Supercharger" ? "Supercharger" : "Standard";
+            chargeStationType = st.type === "Fast Charger" ? "Fast Charger" : "Standard";
             usedStationIds.add(st.id);
           }
-          if (closestSupercharger && chargeStationType !== "Supercharger") {
-            const sc = closestSupercharger as ChargePoint;
-            nearestSupercharger = {
+          if (closestFastCharger && chargeStationType !== "Fast Charger") {
+            const sc = closestFastCharger as ChargePoint;
+            nearestFastCharger = {
               title: sc.title,
               address: sc.address,
               lat: sc.lat,
               lng: sc.lng,
-              estimatedChargeTime: calculateChargeTime("Supercharger", batteryOnArrival, batteryKWh, undefined, chargeTarget),
+              estimatedChargeTime: calculateChargeTime("Fast Charger", batteryOnArrival, batteryKWh, undefined, chargeTarget),
             };
           }
         }
@@ -645,7 +635,7 @@ export default function Map() {
           lat: chargeLat,
           lng: chargeLng,
           stationType: chargeStationType,
-          nearestSupercharger,
+          nearestFastCharger,
           stopId,
           estimatedChargeTime: chargeTime,
           routeKm: chargeAtKm,
@@ -977,6 +967,8 @@ export default function Map() {
                 isPro={isPro}
                 onOpenPro={openPro}
                 chargeTarget={chargeTarget}
+                totalKm={routeDisplayKm}
+                totalDurationSec={routeTotalDuration}
               />
             </div>
 
@@ -1090,8 +1082,8 @@ export default function Map() {
                                   location: selectedStation.type === "Selected Stop"
                                     ? selectedStation.title
                                     : [selectedStation.title, selectedStation.address].filter(Boolean).join(", "),
-                                  // preserve original charger type (Supercharger vs Standard)
-                                  stationType: selectedStation.chargerType ?? (selectedStation.type === "Supercharger" ? "Supercharger" : "Standard"),
+                                  // preserve original charger type (Fast Charger vs Standard)
+                                  stationType: selectedStation.chargerType ?? (selectedStation.type === "Fast Charger" ? "Fast Charger" : "Standard"),
                                   estimatedChargeTime: selectedStation.estimatedChargeTime,
                                   stopId: selectedStation.id,
                                   lat: selectedStation.lat,
@@ -1127,16 +1119,38 @@ export default function Map() {
                 </GoogleMap>
 
                 <div className="absolute top-4 right-4 z-20" style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                  <button
-                    onClick={() => {
-                      trackNavigationStart();
-                      const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
-                      let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-                      if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
-                      window.open(url, "_blank");
-                    }}
-                    style={{ background: "white", borderRadius: 10, border: "none", cursor: "pointer", padding: "10px 14px", fontSize: 13, fontWeight: 600, boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, height: 48, whiteSpace: "nowrap" }}
-                  >📍 Open in Maps</button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        trackNavigationStart();
+                        const waypointStr = stations.filter(s => s.isUsedAsWaypoint).map(s => `${s.lat},${s.lng}`).join("|");
+                        let url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+                        if (waypointStr) url += `&waypoints=${encodeURIComponent(waypointStr)}`;
+                        window.open(url, "_blank");
+                      }}
+                      style={{ background: "white", borderRadius: 10, border: "none", cursor: "pointer", padding: "10px 14px", fontSize: 13, fontWeight: 600, boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, height: 48, whiteSpace: "nowrap" }}
+                    >📍 Open in Google Maps</button>
+                    {routePlanned && routeDisplayKm > 0 && (
+                      <div style={{
+                        background: "white", borderRadius: 10, padding: "8px 14px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                        display: "flex", flexDirection: "column", gap: 2,
+                        pointerEvents: "none",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <span style={{ fontSize: 16 }}>🚗</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>
+                            {(() => {
+                              const h = Math.floor(routeTotalDuration / 3600);
+                              const m = Math.round((routeTotalDuration % 3600) / 60);
+                              return m > 0 ? `${h} hr ${m} min` : `${h} hr`;
+                            })()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "#555", paddingLeft: 24 }}>{Math.round(routeDisplayKm)} km</div>
+                      </div>
+                    )}
+                  </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <button onClick={() => mapRef?.setZoom((mapRef.getZoom() || 10) + 1)}
                       style={{ width: 48, height: 48, background: "white", borderRadius: 10, border: "none", fontSize: 24, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>

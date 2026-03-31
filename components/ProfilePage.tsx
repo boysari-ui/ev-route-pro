@@ -111,7 +111,7 @@ export default function ProfilePage({ onClose, onOpenPro, savedRoutes = [], onLo
               border: "none", color: "white", fontWeight: 700, fontSize: 14,
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
-              ⚡ Upgrade to Pro Plus — $4.99/month
+              ⚡ Upgrade to Pro Plus — $2.99/month
             </button>
           )}
         </div>

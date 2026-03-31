@@ -1,6 +1,6 @@
 // ─── ✨ ChargingTimeline Component ────────────────────────────────────────────
 
-interface NearestSupercharger {
+interface NearestFastCharger {
   title: string;
   address?: string;
   lat: number;
@@ -13,8 +13,8 @@ type TimelineItem = {
   location: string;
   address?: string;
   battery: number;
-  stationType?: "Supercharger" | "Standard";
-  nearestSupercharger?: NearestSupercharger;
+  stationType?: "Fast Charger" | "Standard";
+  nearestFastCharger?: NearestFastCharger;
   stopId?: string;
   estimatedChargeTime?: number;
   lat?: number;
@@ -28,6 +28,8 @@ export default function ChargingTimeline({
   isPro,
   onOpenPro,
   chargeTarget = 100,
+  totalKm = 0,
+  totalDurationSec = 0,
 }: {
   items: TimelineItem[];
   onRemoveStop?: (item: TimelineItem) => void;
@@ -35,6 +37,8 @@ export default function ChargingTimeline({
   isPro?: boolean;
   onOpenPro?: () => void;
   chargeTarget?: number;
+  totalKm?: number;
+  totalDurationSec?: number;
 }) {
   const getBatteryColor = (pct: number) => {
     if (pct >= 50) return { main: "#22c55e", glow: "rgba(34,197,94,0.35)" };
@@ -68,7 +72,7 @@ export default function ChargingTimeline({
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const }}>
           <div style={{
             background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
             borderRadius: 8, padding: "5px 11px",
@@ -78,6 +82,14 @@ export default function ChargingTimeline({
           <span style={{ color: "#94a3b8", fontSize: 12 }}>
             {items.filter(i => i.type === "charge").length} charging stop{items.filter(i => i.type === "charge").length !== 1 ? "s" : ""}
           </span>
+          {totalKm > 0 && (
+            <span style={{ color: "#64748b", fontSize: 12 }}>·</span>
+          )}
+          {totalKm > 0 && (
+            <span style={{ color: "#94a3b8", fontSize: 12, fontWeight: 700 }}>
+              {Math.round(totalKm)} km · {formatTime(totalDurationSec / 60)}
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
           {items.length} waypoints
@@ -90,7 +102,7 @@ export default function ChargingTimeline({
           const isLast = index === items.length - 1;
           const c = config[item.type];
           const batt = getBatteryColor(item.battery);
-          const isSupercharger = item.stationType === "Supercharger";
+          const isFastCharger = item.stationType === "Fast Charger";
 
           return (
             <div key={index} style={{ display: "flex", gap: 14 }}>
@@ -145,19 +157,19 @@ export default function ChargingTimeline({
                         <div style={{
                           fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
                           padding: "2px 7px", borderRadius: 99,
-                          background: isSupercharger ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)",
-                          color: isSupercharger ? "#ef4444" : "#22c55e",
-                          border: `1px solid ${isSupercharger ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
+                          background: isFastCharger ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)",
+                          color: isFastCharger ? "#ef4444" : "#22c55e",
+                          border: `1px solid ${isFastCharger ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
                         }}>
-                          {isSupercharger ? "⚡ SUPERCHARGER" : "🔌 STANDARD"}
+                          {isFastCharger ? "⚡ FAST CHARGER" : "🔌 STANDARD"}
                         </div>
                       )}
                     </div>
 
                     {item.type === "charge" && (
                       <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontStyle: "italic" }}>
-                        {isSupercharger
-                          ? "Nearest supercharger on route · planned stop when battery reaches 20%"
+                        {isFastCharger
+                          ? "Nearest fast charger on route · planned stop when battery reaches 20%"
                           : "Nearest charger on route · planned stop when battery reaches 20%"}
                       </div>
                     )}
@@ -222,8 +234,8 @@ export default function ChargingTimeline({
                   </div>
                 </div>
 
-                {/* Nearest Supercharger */}
-                {item.type === "charge" && item.nearestSupercharger && (
+                {/* Nearest Fast Charger */}
+                {item.type === "charge" && item.nearestFastCharger && (
                   isPro ? (
                     <div style={{
                       marginTop: 10, padding: "8px 12px",
@@ -234,21 +246,21 @@ export default function ChargingTimeline({
                         ⚡ NEAREST SUPERCHARGER AVAILABLE
                       </div>
                       <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>
-                        {item.nearestSupercharger.title}
+                        {item.nearestFastCharger.title}
                       </div>
-                      {item.nearestSupercharger.address && (
+                      {item.nearestFastCharger.address && (
                         <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>
-                          {item.nearestSupercharger.address}
+                          {item.nearestFastCharger.address}
                         </div>
                       )}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-                        {item.nearestSupercharger.estimatedChargeTime !== undefined && (
+                        {item.nearestFastCharger.estimatedChargeTime !== undefined && (
                           <div style={{ fontSize: 10, color: "#94a3b8" }}>
-                            ~{formatTime(item.nearestSupercharger.estimatedChargeTime)} charge time
+                            ~{formatTime(item.nearestFastCharger.estimatedChargeTime)} charge time
                           </div>
                         )}
                         <button
-                          onClick={() => onViewOnMap?.(item.nearestSupercharger!.lat, item.nearestSupercharger!.lng)}
+                          onClick={() => onViewOnMap?.(item.nearestFastCharger!.lat, item.nearestFastCharger!.lng)}
                           style={{
                             fontSize: 10, color: "#a78bfa", fontWeight: 600,
                             background: "none", border: "none", cursor: "pointer",
@@ -270,7 +282,7 @@ export default function ChargingTimeline({
                       }}
                     >
                       <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", letterSpacing: "0.1em" }}>
-                        ⚡ PRO PLUS: Nearest Supercharger
+                        ⚡ PRO PLUS: Nearest Fast Charger
                       </div>
                       <div style={{ fontSize: 10, color: "#e2e8f0", marginTop: 2 }}>
                         Upgrade to see nearby supercharger details

@@ -27,7 +27,7 @@ export default function StationMarkers({
           if (station.isUsedAsWaypoint || station.type === "Selected Stop") {
             return visibleTypes.has("Selected Stop");
           }
-          if (station.type === "Supercharger") return visibleTypes.has("Supercharger");
+          if (station.type === "Fast Charger") return visibleTypes.has("Fast Charger");
           return visibleTypes.has("Standard");
         })
         .map(station => (
@@ -39,7 +39,7 @@ export default function StationMarkers({
               url:
                 station.isUsedAsWaypoint || station.type === "Selected Stop"
                   ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                  : station.type === "Supercharger"
+                  : station.type === "Fast Charger"
                   ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
                   : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
             }}

@@ -87,7 +87,6 @@ export default function ProUpgradeModal({ onClose, limitReached }: Props) {
           </div>
           {[
             { icon: "🗺️", label: "Route calculations", free: "10 / week", pro: "Unlimited" },
-            { icon: "⚡", label: "Charger priority",   free: "Standard",  pro: "Supercharger first" },
             { icon: "🚗", label: "EV models",          free: "10 models", pro: "25 models" },
             { icon: "📍", label: "Save routes",        free: "✕",         pro: "✓" },
           ].map(({ icon, label, free, pro }, i) => (
@@ -106,6 +105,27 @@ export default function ProUpgradeModal({ onClose, limitReached }: Props) {
           ))}
         </div>
 
+        {/* Coming Soon */}
+        <div style={{
+          marginBottom: 20, padding: "12px 14px",
+          background: "rgba(251,191,36,0.06)", borderRadius: 12,
+          border: "1px solid rgba(251,191,36,0.15)",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24", marginBottom: 8, letterSpacing: "0.06em" }}>✨ COMING SOON FOR PRO PLUS</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              { icon: "☕", text: "Nearby cafés & restaurants at charging stops" },
+              { icon: "🏨", text: "Accommodation along your route" },
+              { icon: "🗺️", text: "Attractions & things to do while charging" },
+            ].map(({ icon, text }) => (
+              <div key={text} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Price */}
         <div style={{
           background: "rgba(255,255,255,0.04)", borderRadius: 16,
@@ -113,7 +133,7 @@ export default function ProUpgradeModal({ onClose, limitReached }: Props) {
           border: "1px solid rgba(255,255,255,0.06)",
         }}>
           <div style={{ color: "white", fontSize: 32, fontWeight: 900 }}>
-            $4.99
+            $2.99
             <span style={{ fontSize: 16, fontWeight: 400, color: "#64748b" }}> / month</span>
           </div>
           <div style={{ color: "#475569", fontSize: 12, marginTop: 4 }}>
@@ -133,7 +153,7 @@ export default function ProUpgradeModal({ onClose, limitReached }: Props) {
             transition: "all 0.2s ease",
           }}
         >
-          {loading ? "Redirecting to checkout..." : "Start Pro Plus — $4.99/month"}
+          {loading ? "Redirecting to checkout..." : "Start Pro Plus — $2.99/month"}
         </button>
 
         <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 12 }}>

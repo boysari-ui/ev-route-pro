@@ -76,14 +76,36 @@ export async function POST(req: NextRequest) {
     Sentry.captureException(err, { tags: { api: "route-ratelimit" } });
   }
 
-  try {
+  const geocode = async (address: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.GOOGLE_MAPS_SERVER_KEY}`);
+      const data = await res.json();
+      const loc = data.results?.[0]?.geometry?.location;
+      if (loc) return `${loc.lat},${loc.lng}`;
+    } catch {}
+    return null;
+  };
+
+  const fetchDirections = async (orig: string, dest: string) => {
     const waypointsParam = stops && stops.length > 0
       ? `&waypoints=${stops.map((s: string) => encodeURIComponent(s)).join("|")}`
       : "";
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypointsParam}&key=${process.env.GOOGLE_MAPS_SERVER_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(orig)}&destination=${encodeURIComponent(dest)}${waypointsParam}&key=${process.env.GOOGLE_MAPS_SERVER_KEY}`;
+    const res = await fetch(url);
+    return res.json();
+  };
 
-    const response = await fetch(url);
-    const data = await response.json();
+  try {
+    let data = await fetchDirections(origin, destination);
+
+    // Fallback: if no routes, retry with geocoded coordinates
+    if (!data.routes || data.routes.length === 0) {
+      const [originCoords, destCoords] = await Promise.all([geocode(origin), geocode(destination)]);
+      if (originCoords || destCoords) {
+        data = await fetchDirections(originCoords ?? origin, destCoords ?? destination);
+      }
+    }
+
     return NextResponse.json(data);
   } catch (err) {
     Sentry.captureException(err, { tags: { api: "directions" }, extra: { origin, destination } });
