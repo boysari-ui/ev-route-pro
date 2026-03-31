@@ -523,6 +523,8 @@ export default function Map() {
         let chargeStationSpeed: string | undefined;
         let chargeStationCost: string | undefined;
         let chargeStationPowerKW: number | undefined;
+        let chargeStationConnectors: string[] | undefined;
+        let chargeStationNumPoints: number | undefined;
         let chargeLat = pt.lat;
         let chargeLng = pt.lng;
         let chargeStationType: "Fast Charger" | "Standard" = "Standard";
@@ -568,6 +570,8 @@ export default function Map() {
             chargeStationSpeed = st.speed;
             chargeStationCost = st.cost;
             chargeStationPowerKW = st.powerKW;
+            chargeStationConnectors = st.connectors;
+            chargeStationNumPoints = st.numPoints;
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Fast Charger" ? "Fast Charger" : "Standard";
@@ -603,6 +607,8 @@ export default function Map() {
             chargeStationSpeed = st.speed;
             chargeStationCost = st.cost;
             chargeStationPowerKW = st.powerKW;
+            chargeStationConnectors = st.connectors;
+            chargeStationNumPoints = st.numPoints;
             chargeLat = st.lat;
             chargeLng = st.lng;
             chargeStationType = st.type === "Fast Charger" ? "Fast Charger" : "Standard";
@@ -650,6 +656,9 @@ export default function Map() {
           address: chargeStationAddress,
           speed: chargeStationSpeed,
           cost: chargeStationCost,
+          powerKW: chargeStationPowerKW,
+          connectors: chargeStationConnectors,
+          numPoints: chargeStationNumPoints,
           isUsedAsWaypoint: true,
           batteryAfterReach: batteryOnArrival,
           estimatedChargeTime: chargeTime,
