@@ -12,7 +12,7 @@ function getAdmin() {
   return { auth: getAuth(), db: getFirestore() };
 }
 
-const FREE_WEEKLY_LIMIT = 10;
+const FREE_WEEKLY_LIMIT = 30;
 const ANON_WEEKLY_LIMIT = 3;
 
 // Monday of the current UTC week — resets every Monday
