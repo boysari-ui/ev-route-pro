@@ -54,7 +54,7 @@ export default function ChargingTimeline({
   };
 
   const config = {
-    start:    { icon: "🚗", label: "DEPARTURE",     accent: "#60a5fa", glow: "rgba(96,165,250,0.3)",   bg: "rgba(59,130,246,0.08)",  border: "rgba(96,165,250,0.2)"  },
+    start:    { icon: "🏎️", label: "DEPARTURE",     accent: "#60a5fa", glow: "rgba(96,165,250,0.3)",   bg: "rgba(59,130,246,0.08)",  border: "rgba(96,165,250,0.2)"  },
     charge:   { icon: "⚡", label: "CHARGING STOP", accent: "#fbbf24", glow: "rgba(251,191,36,0.3)",  bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.25)" },
     waypoint: { icon: "📍", label: "WAYPOINT",      accent: "#34d399", glow: "rgba(52,211,153,0.3)",  bg: "rgba(52,211,153,0.07)",  border: "rgba(52,211,153,0.2)"  },
     arrival:  { icon: "🏁", label: "ARRIVAL",       accent: "#a78bfa", glow: "rgba(167,139,250,0.3)", bg: "rgba(139,92,246,0.08)",  border: "rgba(167,139,250,0.2)" },
